@@ -1,5 +1,21 @@
 # Release History
 
+## 1.0.0b4 (Unreleased)
+
+### Features Added
+
+### Breaking Changes
+
+### Bugs Fixed
+
+### Other Changes
+
+## 1.0.0b3 (2024-07-26)
+
+### Features Added
+
+Added support for Entra ID authentication.
+
 ## 1.0.0b2 (2024-02-09)
 
 ### Breaking Changes

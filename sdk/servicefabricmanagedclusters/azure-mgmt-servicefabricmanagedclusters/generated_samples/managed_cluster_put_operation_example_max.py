@@ -6,7 +6,10 @@
 # Changes may cause incorrect behavior and will be lost if the code is regenerated.
 # --------------------------------------------------------------------------
 
+from typing import Any, IO, Union
+
 from azure.identity import DefaultAzureCredential
+
 from azure.mgmt.servicefabricmanagedclusters import ServiceFabricManagedClustersManagementClient
 
 """
@@ -55,11 +58,13 @@ def main():
                 "ddosProtectionPlanId": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/resRg/providers/Microsoft.Network/ddosProtectionPlans/myDDoSProtectionPlan",
                 "dnsName": "myCluster",
                 "enableAutoOSUpgrade": True,
+                "enableHttpGatewayExclusiveAuthMode": True,
                 "enableIpv6": True,
                 "fabricSettings": [
                     {"name": "ManagedIdentityTokenService", "parameters": [{"name": "IsEnabled", "value": "true"}]}
                 ],
                 "httpGatewayConnectionPort": 19080,
+                "httpGatewayTokenAuthConnectionPort": 19081,
                 "ipTags": [{"ipTagType": "FirstPartyUsage", "tag": "SQL"}],
                 "loadBalancingRules": [
                     {
@@ -140,6 +145,6 @@ def main():
     print(response)
 
 
-# x-ms-original-file: specification/servicefabricmanagedclusters/resource-manager/Microsoft.ServiceFabric/preview/2023-11-01-preview/examples/ManagedClusterPutOperation_example_max.json
+# x-ms-original-file: specification/servicefabricmanagedclusters/resource-manager/Microsoft.ServiceFabric/stable/2024-04-01/examples/ManagedClusterPutOperation_example_max.json
 if __name__ == "__main__":
     main()

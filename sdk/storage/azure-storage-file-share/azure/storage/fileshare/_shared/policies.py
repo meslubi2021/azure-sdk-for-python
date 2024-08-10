@@ -12,12 +12,12 @@ import re
 import uuid
 from io import SEEK_SET, UnsupportedOperation
 from time import time
-from typing import Any, Dict, Optional, TYPE_CHECKING, Union
+from typing import Any, Dict, Optional, TYPE_CHECKING
 from urllib.parse import (
-        parse_qsl,
-        urlencode,
-        urlparse,
-        urlunparse,
+    parse_qsl,
+    urlencode,
+    urlparse,
+    urlunparse,
 )
 from wsgiref.handlers import format_date_time
 
@@ -28,10 +28,10 @@ from azure.core.pipeline.policies import (
     HTTPPolicy,
     NetworkTraceLoggingPolicy,
     RequestHistory,
-    SansIOHTTPPolicy,
+    SansIOHTTPPolicy
 )
 
-from .authentication import StorageHttpChallenge
+from .authentication import AzureSigningError, StorageHttpChallenge
 from .constants import DEFAULT_OAUTH_SCOPE
 from .models import LocationMode
 
@@ -471,12 +471,11 @@ class StorageRetryPolicy(HTTPPolicy):
     ) -> bool:
         """Increment the retry counters.
 
-        Dict[str, Any]] settings: The configurable values pertaining to the increment operation.
+        :param dict[str, Any]] settings: The configurable values pertaining to the increment operation.
         :param PipelineRequest request: A pipeline request object.
         :param Optional[PipelineResponse] response: A pipeline response object.
-        :param error: An error encountered during the request, or
+        :param Optional[AzureError] error: An error encountered during the request, or
             None if the response was received successfully.
-        :paramtype error: Optional[AzureError]
         :returns: Whether the retry attempts are exhausted.
         :rtype: bool
         """
@@ -542,6 +541,8 @@ class StorageRetryPolicy(HTTPPolicy):
                         continue
                 break
             except AzureError as err:
+                if isinstance(err, AzureSigningError):
+                    raise
                 retries_remaining = self.increment(
                     retry_settings, request=request.http_request, error=err)
                 if retries_remaining:

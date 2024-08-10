@@ -125,7 +125,7 @@ class InteractiveCredential(MsalCredential, ABC):
 
         :param str scopes: desired scopes for the access token. This method requires at least one scope.
             For more information about scopes, see
-            https://learn.microsoft.com/azure/active-directory/develop/scopes-oidc.
+            https://learn.microsoft.com/entra/identity-platform/scopes-oidc.
         :keyword str claims: additional claims required in the token, such as those returned in a resource provider's
             claims challenge following an authorization failure
         :keyword str tenant_id: optional tenant to include in the token request.
@@ -189,7 +189,7 @@ class InteractiveCredential(MsalCredential, ABC):
     def authenticate(
         self, *, scopes: Optional[Iterable[str]] = None, claims: Optional[str] = None, **kwargs: Any
     ) -> AuthenticationRecord:
-        """Interactively authenticate a user.
+        """Interactively authenticate a user. This method will always generate a challenge to the user.
 
         :keyword Iterable[str] scopes: scopes to request during authentication, such as those provided by
           :func:`AuthenticationRequiredError.scopes`. If provided, successful authentication will cache an access token

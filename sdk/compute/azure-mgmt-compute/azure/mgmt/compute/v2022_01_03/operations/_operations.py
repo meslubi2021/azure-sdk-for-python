@@ -1,4 +1,4 @@
-# pylint: disable=too-many-lines
+# pylint: disable=too-many-lines,too-many-statements
 # coding=utf-8
 # --------------------------------------------------------------------------
 # Copyright (c) Microsoft Corporation. All rights reserved.
@@ -7,7 +7,8 @@
 # Changes may cause incorrect behavior and will be lost if the code is regenerated.
 # --------------------------------------------------------------------------
 from io import IOBase
-from typing import Any, Callable, Dict, IO, Iterable, Optional, TypeVar, Union, cast, overload
+import sys
+from typing import Any, Callable, Dict, IO, Iterable, Iterator, Optional, Type, TypeVar, Union, cast, overload
 import urllib.parse
 
 from azure.core.exceptions import (
@@ -20,9 +21,8 @@ from azure.core.exceptions import (
 )
 from azure.core.paging import ItemPaged
 from azure.core.pipeline import PipelineResponse
-from azure.core.pipeline.transport import HttpResponse
 from azure.core.polling import LROPoller, NoPolling, PollingMethod
-from azure.core.rest import HttpRequest
+from azure.core.rest import HttpRequest, HttpResponse
 from azure.core.tracing.decorator import distributed_trace
 from azure.core.utils import case_insensitive_dict
 from azure.mgmt.core.exceptions import ARMErrorFormat
@@ -30,8 +30,11 @@ from azure.mgmt.core.polling.arm_polling import ARMPolling
 
 from .. import models as _models
 from ..._serialization import Serializer
-from .._vendor import _convert_request
 
+if sys.version_info >= (3, 9):
+    from collections.abc import MutableMapping
+else:
+    from typing import MutableMapping  # type: ignore  # pylint: disable=ungrouped-imports
 T = TypeVar("T")
 ClsType = Optional[Callable[[PipelineResponse[HttpRequest, HttpResponse], T, Dict[str, Any]], Any]]
 
@@ -179,7 +182,7 @@ def build_galleries_delete_request(
     return HttpRequest(method="DELETE", url=_url, params=_params, headers=_headers, **kwargs)
 
 
-def build_galleries_list_by_resource_group_request(
+def build_galleries_list_by_resource_group_request(  # pylint: disable=name-too-long
     resource_group_name: str, subscription_id: str, **kwargs: Any
 ) -> HttpRequest:
     _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
@@ -233,7 +236,7 @@ def build_galleries_list_request(subscription_id: str, **kwargs: Any) -> HttpReq
     return HttpRequest(method="GET", url=_url, params=_params, headers=_headers, **kwargs)
 
 
-def build_gallery_images_create_or_update_request(
+def build_gallery_images_create_or_update_request(  # pylint: disable=name-too-long
     resource_group_name: str, gallery_name: str, gallery_image_name: str, subscription_id: str, **kwargs: Any
 ) -> HttpRequest:
     _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
@@ -367,7 +370,7 @@ def build_gallery_images_delete_request(
     return HttpRequest(method="DELETE", url=_url, params=_params, headers=_headers, **kwargs)
 
 
-def build_gallery_images_list_by_gallery_request(
+def build_gallery_images_list_by_gallery_request(  # pylint: disable=name-too-long
     resource_group_name: str, gallery_name: str, subscription_id: str, **kwargs: Any
 ) -> HttpRequest:
     _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
@@ -398,7 +401,7 @@ def build_gallery_images_list_by_gallery_request(
     return HttpRequest(method="GET", url=_url, params=_params, headers=_headers, **kwargs)
 
 
-def build_gallery_image_versions_create_or_update_request(
+def build_gallery_image_versions_create_or_update_request(  # pylint: disable=name-too-long
     resource_group_name: str,
     gallery_name: str,
     gallery_image_name: str,
@@ -439,7 +442,7 @@ def build_gallery_image_versions_create_or_update_request(
     return HttpRequest(method="PUT", url=_url, params=_params, headers=_headers, **kwargs)
 
 
-def build_gallery_image_versions_update_request(
+def build_gallery_image_versions_update_request(  # pylint: disable=name-too-long
     resource_group_name: str,
     gallery_name: str,
     gallery_image_name: str,
@@ -522,7 +525,7 @@ def build_gallery_image_versions_get_request(
     return HttpRequest(method="GET", url=_url, params=_params, headers=_headers, **kwargs)
 
 
-def build_gallery_image_versions_delete_request(
+def build_gallery_image_versions_delete_request(  # pylint: disable=name-too-long
     resource_group_name: str,
     gallery_name: str,
     gallery_image_name: str,
@@ -560,7 +563,7 @@ def build_gallery_image_versions_delete_request(
     return HttpRequest(method="DELETE", url=_url, params=_params, headers=_headers, **kwargs)
 
 
-def build_gallery_image_versions_list_by_gallery_image_request(
+def build_gallery_image_versions_list_by_gallery_image_request(  # pylint: disable=name-too-long
     resource_group_name: str, gallery_name: str, gallery_image_name: str, subscription_id: str, **kwargs: Any
 ) -> HttpRequest:
     _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
@@ -592,7 +595,7 @@ def build_gallery_image_versions_list_by_gallery_image_request(
     return HttpRequest(method="GET", url=_url, params=_params, headers=_headers, **kwargs)
 
 
-def build_gallery_applications_create_or_update_request(
+def build_gallery_applications_create_or_update_request(  # pylint: disable=name-too-long
     resource_group_name: str, gallery_name: str, gallery_application_name: str, subscription_id: str, **kwargs: Any
 ) -> HttpRequest:
     _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
@@ -627,7 +630,7 @@ def build_gallery_applications_create_or_update_request(
     return HttpRequest(method="PUT", url=_url, params=_params, headers=_headers, **kwargs)
 
 
-def build_gallery_applications_update_request(
+def build_gallery_applications_update_request(  # pylint: disable=name-too-long
     resource_group_name: str, gallery_name: str, gallery_application_name: str, subscription_id: str, **kwargs: Any
 ) -> HttpRequest:
     _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
@@ -694,7 +697,7 @@ def build_gallery_applications_get_request(
     return HttpRequest(method="GET", url=_url, params=_params, headers=_headers, **kwargs)
 
 
-def build_gallery_applications_delete_request(
+def build_gallery_applications_delete_request(  # pylint: disable=name-too-long
     resource_group_name: str, gallery_name: str, gallery_application_name: str, subscription_id: str, **kwargs: Any
 ) -> HttpRequest:
     _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
@@ -726,7 +729,7 @@ def build_gallery_applications_delete_request(
     return HttpRequest(method="DELETE", url=_url, params=_params, headers=_headers, **kwargs)
 
 
-def build_gallery_applications_list_by_gallery_request(
+def build_gallery_applications_list_by_gallery_request(  # pylint: disable=name-too-long
     resource_group_name: str, gallery_name: str, subscription_id: str, **kwargs: Any
 ) -> HttpRequest:
     _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
@@ -757,7 +760,7 @@ def build_gallery_applications_list_by_gallery_request(
     return HttpRequest(method="GET", url=_url, params=_params, headers=_headers, **kwargs)
 
 
-def build_gallery_application_versions_create_or_update_request(
+def build_gallery_application_versions_create_or_update_request(  # pylint: disable=name-too-long
     resource_group_name: str,
     gallery_name: str,
     gallery_application_name: str,
@@ -800,7 +803,7 @@ def build_gallery_application_versions_create_or_update_request(
     return HttpRequest(method="PUT", url=_url, params=_params, headers=_headers, **kwargs)
 
 
-def build_gallery_application_versions_update_request(
+def build_gallery_application_versions_update_request(  # pylint: disable=name-too-long
     resource_group_name: str,
     gallery_name: str,
     gallery_application_name: str,
@@ -843,7 +846,7 @@ def build_gallery_application_versions_update_request(
     return HttpRequest(method="PATCH", url=_url, params=_params, headers=_headers, **kwargs)
 
 
-def build_gallery_application_versions_get_request(
+def build_gallery_application_versions_get_request(  # pylint: disable=name-too-long
     resource_group_name: str,
     gallery_name: str,
     gallery_application_name: str,
@@ -887,7 +890,7 @@ def build_gallery_application_versions_get_request(
     return HttpRequest(method="GET", url=_url, params=_params, headers=_headers, **kwargs)
 
 
-def build_gallery_application_versions_delete_request(
+def build_gallery_application_versions_delete_request(  # pylint: disable=name-too-long
     resource_group_name: str,
     gallery_name: str,
     gallery_application_name: str,
@@ -927,7 +930,7 @@ def build_gallery_application_versions_delete_request(
     return HttpRequest(method="DELETE", url=_url, params=_params, headers=_headers, **kwargs)
 
 
-def build_gallery_application_versions_list_by_gallery_application_request(
+def build_gallery_application_versions_list_by_gallery_application_request(  # pylint: disable=name-too-long
     resource_group_name: str, gallery_name: str, gallery_application_name: str, subscription_id: str, **kwargs: Any
 ) -> HttpRequest:
     _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
@@ -959,7 +962,7 @@ def build_gallery_application_versions_list_by_gallery_application_request(
     return HttpRequest(method="GET", url=_url, params=_params, headers=_headers, **kwargs)
 
 
-def build_gallery_sharing_profile_update_request(
+def build_gallery_sharing_profile_update_request(  # pylint: disable=name-too-long
     resource_group_name: str, gallery_name: str, subscription_id: str, **kwargs: Any
 ) -> HttpRequest:
     _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
@@ -1130,7 +1133,7 @@ def build_shared_gallery_images_get_request(
     return HttpRequest(method="GET", url=_url, params=_params, headers=_headers, **kwargs)
 
 
-def build_shared_gallery_image_versions_list_request(
+def build_shared_gallery_image_versions_list_request(  # pylint: disable=name-too-long
     location: str,
     gallery_unique_name: str,
     gallery_image_name: str,
@@ -1170,7 +1173,7 @@ def build_shared_gallery_image_versions_list_request(
     return HttpRequest(method="GET", url=_url, params=_params, headers=_headers, **kwargs)
 
 
-def build_shared_gallery_image_versions_get_request(
+def build_shared_gallery_image_versions_get_request(  # pylint: disable=name-too-long
     location: str,
     gallery_unique_name: str,
     gallery_image_name: str,
@@ -1239,7 +1242,7 @@ def build_community_galleries_get_request(
     return HttpRequest(method="GET", url=_url, params=_params, headers=_headers, **kwargs)
 
 
-def build_community_gallery_images_get_request(
+def build_community_gallery_images_get_request(  # pylint: disable=name-too-long
     location: str, public_gallery_name: str, gallery_image_name: str, subscription_id: str, **kwargs: Any
 ) -> HttpRequest:
     _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
@@ -1271,7 +1274,7 @@ def build_community_gallery_images_get_request(
     return HttpRequest(method="GET", url=_url, params=_params, headers=_headers, **kwargs)
 
 
-def build_community_gallery_images_list_request(
+def build_community_gallery_images_list_request(  # pylint: disable=name-too-long
     location: str, public_gallery_name: str, subscription_id: str, **kwargs: Any
 ) -> HttpRequest:
     _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
@@ -1302,7 +1305,7 @@ def build_community_gallery_images_list_request(
     return HttpRequest(method="GET", url=_url, params=_params, headers=_headers, **kwargs)
 
 
-def build_community_gallery_image_versions_get_request(
+def build_community_gallery_image_versions_get_request(  # pylint: disable=name-too-long
     location: str,
     public_gallery_name: str,
     gallery_image_name: str,
@@ -1340,7 +1343,7 @@ def build_community_gallery_image_versions_get_request(
     return HttpRequest(method="GET", url=_url, params=_params, headers=_headers, **kwargs)
 
 
-def build_community_gallery_image_versions_list_request(
+def build_community_gallery_image_versions_list_request(  # pylint: disable=name-too-long
     location: str, public_gallery_name: str, gallery_image_name: str, subscription_id: str, **kwargs: Any
 ) -> HttpRequest:
     _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
@@ -1393,9 +1396,9 @@ class GalleriesOperations:
         self._api_version = input_args.pop(0) if input_args else kwargs.pop("api_version")
 
     def _create_or_update_initial(
-        self, resource_group_name: str, gallery_name: str, gallery: Union[_models.Gallery, IO], **kwargs: Any
-    ) -> _models.Gallery:
-        error_map = {
+        self, resource_group_name: str, gallery_name: str, gallery: Union[_models.Gallery, IO[bytes]], **kwargs: Any
+    ) -> Iterator[bytes]:
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -1408,7 +1411,7 @@ class GalleriesOperations:
 
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2022-01-03"))
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-        cls: ClsType[_models.Gallery] = kwargs.pop("cls", None)
+        cls: ClsType[Iterator[bytes]] = kwargs.pop("cls", None)
 
         content_type = content_type or "application/json"
         _json = None
@@ -1418,7 +1421,7 @@ class GalleriesOperations:
         else:
             _json = self._serialize.body(gallery, "Gallery")
 
-        request = build_galleries_create_or_update_request(
+        _request = build_galleries_create_or_update_request(
             resource_group_name=resource_group_name,
             gallery_name=gallery_name,
             subscription_id=self._config.subscription_id,
@@ -1426,41 +1429,36 @@ class GalleriesOperations:
             content_type=content_type,
             json=_json,
             content=_content,
-            template_url=self._create_or_update_initial.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
-        _stream = False
+        _stream = True
         pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
 
         if response.status_code not in [200, 201, 202]:
+            response.read()  # Load the body in memory and close the socket
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
         if response.status_code == 200:
-            deserialized = self._deserialize("Gallery", pipeline_response)
+            deserialized = response.stream_download(self._client._pipeline)
 
         if response.status_code == 201:
-            deserialized = self._deserialize("Gallery", pipeline_response)
+            deserialized = response.stream_download(self._client._pipeline)
 
         if response.status_code == 202:
-            deserialized = self._deserialize("Gallery", pipeline_response)
+            deserialized = response.stream_download(self._client._pipeline)
 
         if cls:
             return cls(pipeline_response, deserialized, {})  # type: ignore
 
         return deserialized  # type: ignore
-
-    _create_or_update_initial.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/galleries/{galleryName}"
-    }
 
     @overload
     def begin_create_or_update(
@@ -1486,14 +1484,6 @@ class GalleriesOperations:
         :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be ARMPolling. Pass in False for this
-         operation to not poll, or pass in your own initialized polling object for a personal polling
-         strategy.
-        :paramtype polling: bool or ~azure.core.polling.PollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of LROPoller that returns either Gallery or the result of cls(response)
         :rtype: ~azure.core.polling.LROPoller[~azure.mgmt.compute.v2022_01_03.models.Gallery]
         :raises ~azure.core.exceptions.HttpResponseError:
@@ -1504,7 +1494,7 @@ class GalleriesOperations:
         self,
         resource_group_name: str,
         gallery_name: str,
-        gallery: IO,
+        gallery: IO[bytes],
         *,
         content_type: str = "application/json",
         **kwargs: Any
@@ -1519,18 +1509,10 @@ class GalleriesOperations:
         :type gallery_name: str
         :param gallery: Parameters supplied to the create or update Shared Image Gallery operation.
          Required.
-        :type gallery: IO
+        :type gallery: IO[bytes]
         :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be ARMPolling. Pass in False for this
-         operation to not poll, or pass in your own initialized polling object for a personal polling
-         strategy.
-        :paramtype polling: bool or ~azure.core.polling.PollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of LROPoller that returns either Gallery or the result of cls(response)
         :rtype: ~azure.core.polling.LROPoller[~azure.mgmt.compute.v2022_01_03.models.Gallery]
         :raises ~azure.core.exceptions.HttpResponseError:
@@ -1538,7 +1520,7 @@ class GalleriesOperations:
 
     @distributed_trace
     def begin_create_or_update(
-        self, resource_group_name: str, gallery_name: str, gallery: Union[_models.Gallery, IO], **kwargs: Any
+        self, resource_group_name: str, gallery_name: str, gallery: Union[_models.Gallery, IO[bytes]], **kwargs: Any
     ) -> LROPoller[_models.Gallery]:
         """Create or update a Shared Image Gallery.
 
@@ -1549,19 +1531,8 @@ class GalleriesOperations:
          Required.
         :type gallery_name: str
         :param gallery: Parameters supplied to the create or update Shared Image Gallery operation. Is
-         either a Gallery type or a IO type. Required.
-        :type gallery: ~azure.mgmt.compute.v2022_01_03.models.Gallery or IO
-        :keyword content_type: Body Parameter content-type. Known values are: 'application/json'.
-         Default value is None.
-        :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be ARMPolling. Pass in False for this
-         operation to not poll, or pass in your own initialized polling object for a personal polling
-         strategy.
-        :paramtype polling: bool or ~azure.core.polling.PollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
+         either a Gallery type or a IO[bytes] type. Required.
+        :type gallery: ~azure.mgmt.compute.v2022_01_03.models.Gallery or IO[bytes]
         :return: An instance of LROPoller that returns either Gallery or the result of cls(response)
         :rtype: ~azure.core.polling.LROPoller[~azure.mgmt.compute.v2022_01_03.models.Gallery]
         :raises ~azure.core.exceptions.HttpResponseError:
@@ -1587,12 +1558,13 @@ class GalleriesOperations:
                 params=_params,
                 **kwargs
             )
+            raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):
-            deserialized = self._deserialize("Gallery", pipeline_response)
+            deserialized = self._deserialize("Gallery", pipeline_response.http_response)
             if cls:
-                return cls(pipeline_response, deserialized, {})
+                return cls(pipeline_response, deserialized, {})  # type: ignore
             return deserialized
 
         if polling is True:
@@ -1602,22 +1574,24 @@ class GalleriesOperations:
         else:
             polling_method = polling
         if cont_token:
-            return LROPoller.from_continuation_token(
+            return LROPoller[_models.Gallery].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return LROPoller(self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
-
-    begin_create_or_update.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/galleries/{galleryName}"
-    }
+        return LROPoller[_models.Gallery](
+            self._client, raw_result, get_long_running_output, polling_method  # type: ignore
+        )
 
     def _update_initial(
-        self, resource_group_name: str, gallery_name: str, gallery: Union[_models.GalleryUpdate, IO], **kwargs: Any
-    ) -> _models.Gallery:
-        error_map = {
+        self,
+        resource_group_name: str,
+        gallery_name: str,
+        gallery: Union[_models.GalleryUpdate, IO[bytes]],
+        **kwargs: Any
+    ) -> Iterator[bytes]:
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -1630,7 +1604,7 @@ class GalleriesOperations:
 
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2022-01-03"))
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-        cls: ClsType[_models.Gallery] = kwargs.pop("cls", None)
+        cls: ClsType[Iterator[bytes]] = kwargs.pop("cls", None)
 
         content_type = content_type or "application/json"
         _json = None
@@ -1640,7 +1614,7 @@ class GalleriesOperations:
         else:
             _json = self._serialize.body(gallery, "GalleryUpdate")
 
-        request = build_galleries_update_request(
+        _request = build_galleries_update_request(
             resource_group_name=resource_group_name,
             gallery_name=gallery_name,
             subscription_id=self._config.subscription_id,
@@ -1648,34 +1622,29 @@ class GalleriesOperations:
             content_type=content_type,
             json=_json,
             content=_content,
-            template_url=self._update_initial.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
-        _stream = False
+        _stream = True
         pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
 
         if response.status_code not in [200]:
+            response.read()  # Load the body in memory and close the socket
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
-        deserialized = self._deserialize("Gallery", pipeline_response)
+        deserialized = response.stream_download(self._client._pipeline)
 
         if cls:
-            return cls(pipeline_response, deserialized, {})
+            return cls(pipeline_response, deserialized, {})  # type: ignore
 
-        return deserialized
-
-    _update_initial.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/galleries/{galleryName}"
-    }
+        return deserialized  # type: ignore
 
     @overload
     def begin_update(
@@ -1700,14 +1669,6 @@ class GalleriesOperations:
         :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be ARMPolling. Pass in False for this
-         operation to not poll, or pass in your own initialized polling object for a personal polling
-         strategy.
-        :paramtype polling: bool or ~azure.core.polling.PollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of LROPoller that returns either Gallery or the result of cls(response)
         :rtype: ~azure.core.polling.LROPoller[~azure.mgmt.compute.v2022_01_03.models.Gallery]
         :raises ~azure.core.exceptions.HttpResponseError:
@@ -1718,7 +1679,7 @@ class GalleriesOperations:
         self,
         resource_group_name: str,
         gallery_name: str,
-        gallery: IO,
+        gallery: IO[bytes],
         *,
         content_type: str = "application/json",
         **kwargs: Any
@@ -1732,18 +1693,10 @@ class GalleriesOperations:
          Required.
         :type gallery_name: str
         :param gallery: Parameters supplied to the update Shared Image Gallery operation. Required.
-        :type gallery: IO
+        :type gallery: IO[bytes]
         :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be ARMPolling. Pass in False for this
-         operation to not poll, or pass in your own initialized polling object for a personal polling
-         strategy.
-        :paramtype polling: bool or ~azure.core.polling.PollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of LROPoller that returns either Gallery or the result of cls(response)
         :rtype: ~azure.core.polling.LROPoller[~azure.mgmt.compute.v2022_01_03.models.Gallery]
         :raises ~azure.core.exceptions.HttpResponseError:
@@ -1751,7 +1704,11 @@ class GalleriesOperations:
 
     @distributed_trace
     def begin_update(
-        self, resource_group_name: str, gallery_name: str, gallery: Union[_models.GalleryUpdate, IO], **kwargs: Any
+        self,
+        resource_group_name: str,
+        gallery_name: str,
+        gallery: Union[_models.GalleryUpdate, IO[bytes]],
+        **kwargs: Any
     ) -> LROPoller[_models.Gallery]:
         """Update a Shared Image Gallery.
 
@@ -1762,19 +1719,8 @@ class GalleriesOperations:
          Required.
         :type gallery_name: str
         :param gallery: Parameters supplied to the update Shared Image Gallery operation. Is either a
-         GalleryUpdate type or a IO type. Required.
-        :type gallery: ~azure.mgmt.compute.v2022_01_03.models.GalleryUpdate or IO
-        :keyword content_type: Body Parameter content-type. Known values are: 'application/json'.
-         Default value is None.
-        :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be ARMPolling. Pass in False for this
-         operation to not poll, or pass in your own initialized polling object for a personal polling
-         strategy.
-        :paramtype polling: bool or ~azure.core.polling.PollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
+         GalleryUpdate type or a IO[bytes] type. Required.
+        :type gallery: ~azure.mgmt.compute.v2022_01_03.models.GalleryUpdate or IO[bytes]
         :return: An instance of LROPoller that returns either Gallery or the result of cls(response)
         :rtype: ~azure.core.polling.LROPoller[~azure.mgmt.compute.v2022_01_03.models.Gallery]
         :raises ~azure.core.exceptions.HttpResponseError:
@@ -1800,12 +1746,13 @@ class GalleriesOperations:
                 params=_params,
                 **kwargs
             )
+            raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):
-            deserialized = self._deserialize("Gallery", pipeline_response)
+            deserialized = self._deserialize("Gallery", pipeline_response.http_response)
             if cls:
-                return cls(pipeline_response, deserialized, {})
+                return cls(pipeline_response, deserialized, {})  # type: ignore
             return deserialized
 
         if polling is True:
@@ -1815,17 +1762,15 @@ class GalleriesOperations:
         else:
             polling_method = polling
         if cont_token:
-            return LROPoller.from_continuation_token(
+            return LROPoller[_models.Gallery].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return LROPoller(self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
-
-    begin_update.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/galleries/{galleryName}"
-    }
+        return LROPoller[_models.Gallery](
+            self._client, raw_result, get_long_running_output, polling_method  # type: ignore
+        )
 
     @distributed_trace
     def get(
@@ -1849,12 +1794,11 @@ class GalleriesOperations:
         :keyword expand: The expand query option to apply on the operation. "SharingProfile/Groups"
          Default value is None.
         :paramtype expand: str or ~azure.mgmt.compute.v2022_01_03.models.GalleryExpandParams
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: Gallery or the result of cls(response)
         :rtype: ~azure.mgmt.compute.v2022_01_03.models.Gallery
         :raises ~azure.core.exceptions.HttpResponseError:
         """
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -1868,23 +1812,21 @@ class GalleriesOperations:
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2022-01-03"))
         cls: ClsType[_models.Gallery] = kwargs.pop("cls", None)
 
-        request = build_galleries_get_request(
+        _request = build_galleries_get_request(
             resource_group_name=resource_group_name,
             gallery_name=gallery_name,
             subscription_id=self._config.subscription_id,
             select=select,
             expand=expand,
             api_version=api_version,
-            template_url=self.get.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
         _stream = False
         pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
@@ -1893,21 +1835,15 @@ class GalleriesOperations:
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
-        deserialized = self._deserialize("Gallery", pipeline_response)
+        deserialized = self._deserialize("Gallery", pipeline_response.http_response)
 
         if cls:
-            return cls(pipeline_response, deserialized, {})
+            return cls(pipeline_response, deserialized, {})  # type: ignore
 
-        return deserialized
+        return deserialized  # type: ignore
 
-    get.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/galleries/{galleryName}"
-    }
-
-    def _delete_initial(  # pylint: disable=inconsistent-return-statements
-        self, resource_group_name: str, gallery_name: str, **kwargs: Any
-    ) -> None:
-        error_map = {
+    def _delete_initial(self, resource_group_name: str, gallery_name: str, **kwargs: Any) -> Iterator[bytes]:
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -1919,37 +1855,43 @@ class GalleriesOperations:
         _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
 
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2022-01-03"))
-        cls: ClsType[None] = kwargs.pop("cls", None)
+        cls: ClsType[Iterator[bytes]] = kwargs.pop("cls", None)
 
-        request = build_galleries_delete_request(
+        _request = build_galleries_delete_request(
             resource_group_name=resource_group_name,
             gallery_name=gallery_name,
             subscription_id=self._config.subscription_id,
             api_version=api_version,
-            template_url=self._delete_initial.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
-        _stream = False
+        _stream = True
         pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
 
         if response.status_code not in [200, 202, 204]:
+            response.read()  # Load the body in memory and close the socket
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
-        if cls:
-            return cls(pipeline_response, None, {})
+        if response.status_code == 200:
+            deserialized = response.stream_download(self._client._pipeline)
 
-    _delete_initial.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/galleries/{galleryName}"
-    }
+        if response.status_code == 202:
+            deserialized = response.stream_download(self._client._pipeline)
+
+        if response.status_code == 204:
+            deserialized = response.stream_download(self._client._pipeline)
+
+        if cls:
+            return cls(pipeline_response, deserialized, {})  # type: ignore
+
+        return deserialized  # type: ignore
 
     @distributed_trace
     def begin_delete(self, resource_group_name: str, gallery_name: str, **kwargs: Any) -> LROPoller[None]:
@@ -1959,14 +1901,6 @@ class GalleriesOperations:
         :type resource_group_name: str
         :param gallery_name: The name of the Shared Image Gallery to be deleted. Required.
         :type gallery_name: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be ARMPolling. Pass in False for this
-         operation to not poll, or pass in your own initialized polling object for a personal polling
-         strategy.
-        :paramtype polling: bool or ~azure.core.polling.PollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of LROPoller that returns either None or the result of cls(response)
         :rtype: ~azure.core.polling.LROPoller[None]
         :raises ~azure.core.exceptions.HttpResponseError:
@@ -1980,7 +1914,7 @@ class GalleriesOperations:
         lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
         cont_token: Optional[str] = kwargs.pop("continuation_token", None)
         if cont_token is None:
-            raw_result = self._delete_initial(  # type: ignore
+            raw_result = self._delete_initial(
                 resource_group_name=resource_group_name,
                 gallery_name=gallery_name,
                 api_version=api_version,
@@ -1989,11 +1923,12 @@ class GalleriesOperations:
                 params=_params,
                 **kwargs
             )
+            raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):  # pylint: disable=inconsistent-return-statements
             if cls:
-                return cls(pipeline_response, None, {})
+                return cls(pipeline_response, None, {})  # type: ignore
 
         if polling is True:
             polling_method: PollingMethod = cast(PollingMethod, ARMPolling(lro_delay, **kwargs))
@@ -2002,17 +1937,13 @@ class GalleriesOperations:
         else:
             polling_method = polling
         if cont_token:
-            return LROPoller.from_continuation_token(
+            return LROPoller[None].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return LROPoller(self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
-
-    begin_delete.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/galleries/{galleryName}"
-    }
+        return LROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
 
     @distributed_trace
     def list_by_resource_group(self, resource_group_name: str, **kwargs: Any) -> Iterable["_models.Gallery"]:
@@ -2020,7 +1951,6 @@ class GalleriesOperations:
 
         :param resource_group_name: The name of the resource group. Required.
         :type resource_group_name: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: An iterator like instance of either Gallery or the result of cls(response)
         :rtype: ~azure.core.paging.ItemPaged[~azure.mgmt.compute.v2022_01_03.models.Gallery]
         :raises ~azure.core.exceptions.HttpResponseError:
@@ -2031,7 +1961,7 @@ class GalleriesOperations:
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2022-01-03"))
         cls: ClsType[_models.GalleryList] = kwargs.pop("cls", None)
 
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -2042,16 +1972,14 @@ class GalleriesOperations:
         def prepare_request(next_link=None):
             if not next_link:
 
-                request = build_galleries_list_by_resource_group_request(
+                _request = build_galleries_list_by_resource_group_request(
                     resource_group_name=resource_group_name,
                     subscription_id=self._config.subscription_id,
                     api_version=api_version,
-                    template_url=self.list_by_resource_group.metadata["url"],
                     headers=_headers,
                     params=_params,
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
+                _request.url = self._client.format_url(_request.url)
 
             else:
                 # make call to next link with the client's api-version
@@ -2062,14 +1990,13 @@ class GalleriesOperations:
                         for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
                     }
                 )
-                _next_request_params["api-version"] = self._config.api_version
-                request = HttpRequest(
+                _next_request_params["api-version"] = self._api_version
+                _request = HttpRequest(
                     "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
-                request.method = "GET"
-            return request
+                _request.url = self._client.format_url(_request.url)
+                _request.method = "GET"
+            return _request
 
         def extract_data(pipeline_response):
             deserialized = self._deserialize("GalleryList", pipeline_response)
@@ -2079,11 +2006,11 @@ class GalleriesOperations:
             return deserialized.next_link or None, iter(list_of_elem)
 
         def get_next(next_link=None):
-            request = prepare_request(next_link)
+            _request = prepare_request(next_link)
 
             _stream = False
             pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
-                request, stream=_stream, **kwargs
+                _request, stream=_stream, **kwargs
             )
             response = pipeline_response.http_response
 
@@ -2094,16 +2021,11 @@ class GalleriesOperations:
             return pipeline_response
 
         return ItemPaged(get_next, extract_data)
-
-    list_by_resource_group.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/galleries"
-    }
 
     @distributed_trace
     def list(self, **kwargs: Any) -> Iterable["_models.Gallery"]:
         """List galleries under a subscription.
 
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: An iterator like instance of either Gallery or the result of cls(response)
         :rtype: ~azure.core.paging.ItemPaged[~azure.mgmt.compute.v2022_01_03.models.Gallery]
         :raises ~azure.core.exceptions.HttpResponseError:
@@ -2114,7 +2036,7 @@ class GalleriesOperations:
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2022-01-03"))
         cls: ClsType[_models.GalleryList] = kwargs.pop("cls", None)
 
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -2125,15 +2047,13 @@ class GalleriesOperations:
         def prepare_request(next_link=None):
             if not next_link:
 
-                request = build_galleries_list_request(
+                _request = build_galleries_list_request(
                     subscription_id=self._config.subscription_id,
                     api_version=api_version,
-                    template_url=self.list.metadata["url"],
                     headers=_headers,
                     params=_params,
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
+                _request.url = self._client.format_url(_request.url)
 
             else:
                 # make call to next link with the client's api-version
@@ -2144,14 +2064,13 @@ class GalleriesOperations:
                         for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
                     }
                 )
-                _next_request_params["api-version"] = self._config.api_version
-                request = HttpRequest(
+                _next_request_params["api-version"] = self._api_version
+                _request = HttpRequest(
                     "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
-                request.method = "GET"
-            return request
+                _request.url = self._client.format_url(_request.url)
+                _request.method = "GET"
+            return _request
 
         def extract_data(pipeline_response):
             deserialized = self._deserialize("GalleryList", pipeline_response)
@@ -2161,11 +2080,11 @@ class GalleriesOperations:
             return deserialized.next_link or None, iter(list_of_elem)
 
         def get_next(next_link=None):
-            request = prepare_request(next_link)
+            _request = prepare_request(next_link)
 
             _stream = False
             pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
-                request, stream=_stream, **kwargs
+                _request, stream=_stream, **kwargs
             )
             response = pipeline_response.http_response
 
@@ -2176,8 +2095,6 @@ class GalleriesOperations:
             return pipeline_response
 
         return ItemPaged(get_next, extract_data)
-
-    list.metadata = {"url": "/subscriptions/{subscriptionId}/providers/Microsoft.Compute/galleries"}
 
 
 class GalleryImagesOperations:
@@ -2205,10 +2122,10 @@ class GalleryImagesOperations:
         resource_group_name: str,
         gallery_name: str,
         gallery_image_name: str,
-        gallery_image: Union[_models.GalleryImage, IO],
+        gallery_image: Union[_models.GalleryImage, IO[bytes]],
         **kwargs: Any
-    ) -> _models.GalleryImage:
-        error_map = {
+    ) -> Iterator[bytes]:
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -2221,7 +2138,7 @@ class GalleryImagesOperations:
 
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2022-01-03"))
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-        cls: ClsType[_models.GalleryImage] = kwargs.pop("cls", None)
+        cls: ClsType[Iterator[bytes]] = kwargs.pop("cls", None)
 
         content_type = content_type or "application/json"
         _json = None
@@ -2231,7 +2148,7 @@ class GalleryImagesOperations:
         else:
             _json = self._serialize.body(gallery_image, "GalleryImage")
 
-        request = build_gallery_images_create_or_update_request(
+        _request = build_gallery_images_create_or_update_request(
             resource_group_name=resource_group_name,
             gallery_name=gallery_name,
             gallery_image_name=gallery_image_name,
@@ -2240,41 +2157,36 @@ class GalleryImagesOperations:
             content_type=content_type,
             json=_json,
             content=_content,
-            template_url=self._create_or_update_initial.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
-        _stream = False
+        _stream = True
         pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
 
         if response.status_code not in [200, 201, 202]:
+            response.read()  # Load the body in memory and close the socket
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
         if response.status_code == 200:
-            deserialized = self._deserialize("GalleryImage", pipeline_response)
+            deserialized = response.stream_download(self._client._pipeline)
 
         if response.status_code == 201:
-            deserialized = self._deserialize("GalleryImage", pipeline_response)
+            deserialized = response.stream_download(self._client._pipeline)
 
         if response.status_code == 202:
-            deserialized = self._deserialize("GalleryImage", pipeline_response)
+            deserialized = response.stream_download(self._client._pipeline)
 
         if cls:
             return cls(pipeline_response, deserialized, {})  # type: ignore
 
         return deserialized  # type: ignore
-
-    _create_or_update_initial.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/galleries/{galleryName}/images/{galleryImageName}"
-    }
 
     @overload
     def begin_create_or_update(
@@ -2304,14 +2216,6 @@ class GalleryImagesOperations:
         :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be ARMPolling. Pass in False for this
-         operation to not poll, or pass in your own initialized polling object for a personal polling
-         strategy.
-        :paramtype polling: bool or ~azure.core.polling.PollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of LROPoller that returns either GalleryImage or the result of
          cls(response)
         :rtype: ~azure.core.polling.LROPoller[~azure.mgmt.compute.v2022_01_03.models.GalleryImage]
@@ -2324,7 +2228,7 @@ class GalleryImagesOperations:
         resource_group_name: str,
         gallery_name: str,
         gallery_image_name: str,
-        gallery_image: IO,
+        gallery_image: IO[bytes],
         *,
         content_type: str = "application/json",
         **kwargs: Any
@@ -2342,18 +2246,10 @@ class GalleryImagesOperations:
         :type gallery_image_name: str
         :param gallery_image: Parameters supplied to the create or update gallery image operation.
          Required.
-        :type gallery_image: IO
+        :type gallery_image: IO[bytes]
         :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be ARMPolling. Pass in False for this
-         operation to not poll, or pass in your own initialized polling object for a personal polling
-         strategy.
-        :paramtype polling: bool or ~azure.core.polling.PollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of LROPoller that returns either GalleryImage or the result of
          cls(response)
         :rtype: ~azure.core.polling.LROPoller[~azure.mgmt.compute.v2022_01_03.models.GalleryImage]
@@ -2366,7 +2262,7 @@ class GalleryImagesOperations:
         resource_group_name: str,
         gallery_name: str,
         gallery_image_name: str,
-        gallery_image: Union[_models.GalleryImage, IO],
+        gallery_image: Union[_models.GalleryImage, IO[bytes]],
         **kwargs: Any
     ) -> LROPoller[_models.GalleryImage]:
         """Create or update a gallery image definition.
@@ -2381,19 +2277,8 @@ class GalleryImagesOperations:
          middle. The maximum length is 80 characters. Required.
         :type gallery_image_name: str
         :param gallery_image: Parameters supplied to the create or update gallery image operation. Is
-         either a GalleryImage type or a IO type. Required.
-        :type gallery_image: ~azure.mgmt.compute.v2022_01_03.models.GalleryImage or IO
-        :keyword content_type: Body Parameter content-type. Known values are: 'application/json'.
-         Default value is None.
-        :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be ARMPolling. Pass in False for this
-         operation to not poll, or pass in your own initialized polling object for a personal polling
-         strategy.
-        :paramtype polling: bool or ~azure.core.polling.PollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
+         either a GalleryImage type or a IO[bytes] type. Required.
+        :type gallery_image: ~azure.mgmt.compute.v2022_01_03.models.GalleryImage or IO[bytes]
         :return: An instance of LROPoller that returns either GalleryImage or the result of
          cls(response)
         :rtype: ~azure.core.polling.LROPoller[~azure.mgmt.compute.v2022_01_03.models.GalleryImage]
@@ -2421,12 +2306,13 @@ class GalleryImagesOperations:
                 params=_params,
                 **kwargs
             )
+            raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):
-            deserialized = self._deserialize("GalleryImage", pipeline_response)
+            deserialized = self._deserialize("GalleryImage", pipeline_response.http_response)
             if cls:
-                return cls(pipeline_response, deserialized, {})
+                return cls(pipeline_response, deserialized, {})  # type: ignore
             return deserialized
 
         if polling is True:
@@ -2436,27 +2322,25 @@ class GalleryImagesOperations:
         else:
             polling_method = polling
         if cont_token:
-            return LROPoller.from_continuation_token(
+            return LROPoller[_models.GalleryImage].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return LROPoller(self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
-
-    begin_create_or_update.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/galleries/{galleryName}/images/{galleryImageName}"
-    }
+        return LROPoller[_models.GalleryImage](
+            self._client, raw_result, get_long_running_output, polling_method  # type: ignore
+        )
 
     def _update_initial(
         self,
         resource_group_name: str,
         gallery_name: str,
         gallery_image_name: str,
-        gallery_image: Union[_models.GalleryImageUpdate, IO],
+        gallery_image: Union[_models.GalleryImageUpdate, IO[bytes]],
         **kwargs: Any
-    ) -> _models.GalleryImage:
-        error_map = {
+    ) -> Iterator[bytes]:
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -2469,7 +2353,7 @@ class GalleryImagesOperations:
 
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2022-01-03"))
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-        cls: ClsType[_models.GalleryImage] = kwargs.pop("cls", None)
+        cls: ClsType[Iterator[bytes]] = kwargs.pop("cls", None)
 
         content_type = content_type or "application/json"
         _json = None
@@ -2479,7 +2363,7 @@ class GalleryImagesOperations:
         else:
             _json = self._serialize.body(gallery_image, "GalleryImageUpdate")
 
-        request = build_gallery_images_update_request(
+        _request = build_gallery_images_update_request(
             resource_group_name=resource_group_name,
             gallery_name=gallery_name,
             gallery_image_name=gallery_image_name,
@@ -2488,34 +2372,29 @@ class GalleryImagesOperations:
             content_type=content_type,
             json=_json,
             content=_content,
-            template_url=self._update_initial.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
-        _stream = False
+        _stream = True
         pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
 
         if response.status_code not in [200]:
+            response.read()  # Load the body in memory and close the socket
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
-        deserialized = self._deserialize("GalleryImage", pipeline_response)
+        deserialized = response.stream_download(self._client._pipeline)
 
         if cls:
-            return cls(pipeline_response, deserialized, {})
+            return cls(pipeline_response, deserialized, {})  # type: ignore
 
-        return deserialized
-
-    _update_initial.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/galleries/{galleryName}/images/{galleryImageName}"
-    }
+        return deserialized  # type: ignore
 
     @overload
     def begin_update(
@@ -2544,14 +2423,6 @@ class GalleryImagesOperations:
         :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be ARMPolling. Pass in False for this
-         operation to not poll, or pass in your own initialized polling object for a personal polling
-         strategy.
-        :paramtype polling: bool or ~azure.core.polling.PollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of LROPoller that returns either GalleryImage or the result of
          cls(response)
         :rtype: ~azure.core.polling.LROPoller[~azure.mgmt.compute.v2022_01_03.models.GalleryImage]
@@ -2564,7 +2435,7 @@ class GalleryImagesOperations:
         resource_group_name: str,
         gallery_name: str,
         gallery_image_name: str,
-        gallery_image: IO,
+        gallery_image: IO[bytes],
         *,
         content_type: str = "application/json",
         **kwargs: Any
@@ -2581,18 +2452,10 @@ class GalleryImagesOperations:
          maximum length is 80 characters. Required.
         :type gallery_image_name: str
         :param gallery_image: Parameters supplied to the update gallery image operation. Required.
-        :type gallery_image: IO
+        :type gallery_image: IO[bytes]
         :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be ARMPolling. Pass in False for this
-         operation to not poll, or pass in your own initialized polling object for a personal polling
-         strategy.
-        :paramtype polling: bool or ~azure.core.polling.PollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of LROPoller that returns either GalleryImage or the result of
          cls(response)
         :rtype: ~azure.core.polling.LROPoller[~azure.mgmt.compute.v2022_01_03.models.GalleryImage]
@@ -2605,7 +2468,7 @@ class GalleryImagesOperations:
         resource_group_name: str,
         gallery_name: str,
         gallery_image_name: str,
-        gallery_image: Union[_models.GalleryImageUpdate, IO],
+        gallery_image: Union[_models.GalleryImageUpdate, IO[bytes]],
         **kwargs: Any
     ) -> LROPoller[_models.GalleryImage]:
         """Update a gallery image definition.
@@ -2620,19 +2483,8 @@ class GalleryImagesOperations:
          maximum length is 80 characters. Required.
         :type gallery_image_name: str
         :param gallery_image: Parameters supplied to the update gallery image operation. Is either a
-         GalleryImageUpdate type or a IO type. Required.
-        :type gallery_image: ~azure.mgmt.compute.v2022_01_03.models.GalleryImageUpdate or IO
-        :keyword content_type: Body Parameter content-type. Known values are: 'application/json'.
-         Default value is None.
-        :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be ARMPolling. Pass in False for this
-         operation to not poll, or pass in your own initialized polling object for a personal polling
-         strategy.
-        :paramtype polling: bool or ~azure.core.polling.PollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
+         GalleryImageUpdate type or a IO[bytes] type. Required.
+        :type gallery_image: ~azure.mgmt.compute.v2022_01_03.models.GalleryImageUpdate or IO[bytes]
         :return: An instance of LROPoller that returns either GalleryImage or the result of
          cls(response)
         :rtype: ~azure.core.polling.LROPoller[~azure.mgmt.compute.v2022_01_03.models.GalleryImage]
@@ -2660,12 +2512,13 @@ class GalleryImagesOperations:
                 params=_params,
                 **kwargs
             )
+            raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):
-            deserialized = self._deserialize("GalleryImage", pipeline_response)
+            deserialized = self._deserialize("GalleryImage", pipeline_response.http_response)
             if cls:
-                return cls(pipeline_response, deserialized, {})
+                return cls(pipeline_response, deserialized, {})  # type: ignore
             return deserialized
 
         if polling is True:
@@ -2675,17 +2528,15 @@ class GalleryImagesOperations:
         else:
             polling_method = polling
         if cont_token:
-            return LROPoller.from_continuation_token(
+            return LROPoller[_models.GalleryImage].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return LROPoller(self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
-
-    begin_update.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/galleries/{galleryName}/images/{galleryImageName}"
-    }
+        return LROPoller[_models.GalleryImage](
+            self._client, raw_result, get_long_running_output, polling_method  # type: ignore
+        )
 
     @distributed_trace
     def get(
@@ -2700,12 +2551,11 @@ class GalleryImagesOperations:
         :type gallery_name: str
         :param gallery_image_name: The name of the gallery image definition to be retrieved. Required.
         :type gallery_image_name: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: GalleryImage or the result of cls(response)
         :rtype: ~azure.mgmt.compute.v2022_01_03.models.GalleryImage
         :raises ~azure.core.exceptions.HttpResponseError:
         """
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -2719,22 +2569,20 @@ class GalleryImagesOperations:
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2022-01-03"))
         cls: ClsType[_models.GalleryImage] = kwargs.pop("cls", None)
 
-        request = build_gallery_images_get_request(
+        _request = build_gallery_images_get_request(
             resource_group_name=resource_group_name,
             gallery_name=gallery_name,
             gallery_image_name=gallery_image_name,
             subscription_id=self._config.subscription_id,
             api_version=api_version,
-            template_url=self.get.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
         _stream = False
         pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
@@ -2743,21 +2591,17 @@ class GalleryImagesOperations:
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
-        deserialized = self._deserialize("GalleryImage", pipeline_response)
+        deserialized = self._deserialize("GalleryImage", pipeline_response.http_response)
 
         if cls:
-            return cls(pipeline_response, deserialized, {})
+            return cls(pipeline_response, deserialized, {})  # type: ignore
 
-        return deserialized
+        return deserialized  # type: ignore
 
-    get.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/galleries/{galleryName}/images/{galleryImageName}"
-    }
-
-    def _delete_initial(  # pylint: disable=inconsistent-return-statements
+    def _delete_initial(
         self, resource_group_name: str, gallery_name: str, gallery_image_name: str, **kwargs: Any
-    ) -> None:
-        error_map = {
+    ) -> Iterator[bytes]:
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -2769,38 +2613,44 @@ class GalleryImagesOperations:
         _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
 
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2022-01-03"))
-        cls: ClsType[None] = kwargs.pop("cls", None)
+        cls: ClsType[Iterator[bytes]] = kwargs.pop("cls", None)
 
-        request = build_gallery_images_delete_request(
+        _request = build_gallery_images_delete_request(
             resource_group_name=resource_group_name,
             gallery_name=gallery_name,
             gallery_image_name=gallery_image_name,
             subscription_id=self._config.subscription_id,
             api_version=api_version,
-            template_url=self._delete_initial.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
-        _stream = False
+        _stream = True
         pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
 
         if response.status_code not in [200, 202, 204]:
+            response.read()  # Load the body in memory and close the socket
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
-        if cls:
-            return cls(pipeline_response, None, {})
+        if response.status_code == 200:
+            deserialized = response.stream_download(self._client._pipeline)
 
-    _delete_initial.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/galleries/{galleryName}/images/{galleryImageName}"
-    }
+        if response.status_code == 202:
+            deserialized = response.stream_download(self._client._pipeline)
+
+        if response.status_code == 204:
+            deserialized = response.stream_download(self._client._pipeline)
+
+        if cls:
+            return cls(pipeline_response, deserialized, {})  # type: ignore
+
+        return deserialized  # type: ignore
 
     @distributed_trace
     def begin_delete(
@@ -2815,14 +2665,6 @@ class GalleryImagesOperations:
         :type gallery_name: str
         :param gallery_image_name: The name of the gallery image definition to be deleted. Required.
         :type gallery_image_name: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be ARMPolling. Pass in False for this
-         operation to not poll, or pass in your own initialized polling object for a personal polling
-         strategy.
-        :paramtype polling: bool or ~azure.core.polling.PollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of LROPoller that returns either None or the result of cls(response)
         :rtype: ~azure.core.polling.LROPoller[None]
         :raises ~azure.core.exceptions.HttpResponseError:
@@ -2836,7 +2678,7 @@ class GalleryImagesOperations:
         lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
         cont_token: Optional[str] = kwargs.pop("continuation_token", None)
         if cont_token is None:
-            raw_result = self._delete_initial(  # type: ignore
+            raw_result = self._delete_initial(
                 resource_group_name=resource_group_name,
                 gallery_name=gallery_name,
                 gallery_image_name=gallery_image_name,
@@ -2846,11 +2688,12 @@ class GalleryImagesOperations:
                 params=_params,
                 **kwargs
             )
+            raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):  # pylint: disable=inconsistent-return-statements
             if cls:
-                return cls(pipeline_response, None, {})
+                return cls(pipeline_response, None, {})  # type: ignore
 
         if polling is True:
             polling_method: PollingMethod = cast(PollingMethod, ARMPolling(lro_delay, **kwargs))
@@ -2859,17 +2702,13 @@ class GalleryImagesOperations:
         else:
             polling_method = polling
         if cont_token:
-            return LROPoller.from_continuation_token(
+            return LROPoller[None].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return LROPoller(self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
-
-    begin_delete.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/galleries/{galleryName}/images/{galleryImageName}"
-    }
+        return LROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
 
     @distributed_trace
     def list_by_gallery(
@@ -2882,7 +2721,6 @@ class GalleryImagesOperations:
         :param gallery_name: The name of the Shared Image Gallery from which Image Definitions are to
          be listed. Required.
         :type gallery_name: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: An iterator like instance of either GalleryImage or the result of cls(response)
         :rtype: ~azure.core.paging.ItemPaged[~azure.mgmt.compute.v2022_01_03.models.GalleryImage]
         :raises ~azure.core.exceptions.HttpResponseError:
@@ -2893,7 +2731,7 @@ class GalleryImagesOperations:
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2022-01-03"))
         cls: ClsType[_models.GalleryImageList] = kwargs.pop("cls", None)
 
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -2904,17 +2742,15 @@ class GalleryImagesOperations:
         def prepare_request(next_link=None):
             if not next_link:
 
-                request = build_gallery_images_list_by_gallery_request(
+                _request = build_gallery_images_list_by_gallery_request(
                     resource_group_name=resource_group_name,
                     gallery_name=gallery_name,
                     subscription_id=self._config.subscription_id,
                     api_version=api_version,
-                    template_url=self.list_by_gallery.metadata["url"],
                     headers=_headers,
                     params=_params,
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
+                _request.url = self._client.format_url(_request.url)
 
             else:
                 # make call to next link with the client's api-version
@@ -2925,14 +2761,13 @@ class GalleryImagesOperations:
                         for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
                     }
                 )
-                _next_request_params["api-version"] = self._config.api_version
-                request = HttpRequest(
+                _next_request_params["api-version"] = self._api_version
+                _request = HttpRequest(
                     "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
-                request.method = "GET"
-            return request
+                _request.url = self._client.format_url(_request.url)
+                _request.method = "GET"
+            return _request
 
         def extract_data(pipeline_response):
             deserialized = self._deserialize("GalleryImageList", pipeline_response)
@@ -2942,11 +2777,11 @@ class GalleryImagesOperations:
             return deserialized.next_link or None, iter(list_of_elem)
 
         def get_next(next_link=None):
-            request = prepare_request(next_link)
+            _request = prepare_request(next_link)
 
             _stream = False
             pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
-                request, stream=_stream, **kwargs
+                _request, stream=_stream, **kwargs
             )
             response = pipeline_response.http_response
 
@@ -2957,10 +2792,6 @@ class GalleryImagesOperations:
             return pipeline_response
 
         return ItemPaged(get_next, extract_data)
-
-    list_by_gallery.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/galleries/{galleryName}/images"
-    }
 
 
 class GalleryImageVersionsOperations:
@@ -2989,10 +2820,10 @@ class GalleryImageVersionsOperations:
         gallery_name: str,
         gallery_image_name: str,
         gallery_image_version_name: str,
-        gallery_image_version: Union[_models.GalleryImageVersion, IO],
+        gallery_image_version: Union[_models.GalleryImageVersion, IO[bytes]],
         **kwargs: Any
-    ) -> _models.GalleryImageVersion:
-        error_map = {
+    ) -> Iterator[bytes]:
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -3005,7 +2836,7 @@ class GalleryImageVersionsOperations:
 
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2022-01-03"))
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-        cls: ClsType[_models.GalleryImageVersion] = kwargs.pop("cls", None)
+        cls: ClsType[Iterator[bytes]] = kwargs.pop("cls", None)
 
         content_type = content_type or "application/json"
         _json = None
@@ -3015,7 +2846,7 @@ class GalleryImageVersionsOperations:
         else:
             _json = self._serialize.body(gallery_image_version, "GalleryImageVersion")
 
-        request = build_gallery_image_versions_create_or_update_request(
+        _request = build_gallery_image_versions_create_or_update_request(
             resource_group_name=resource_group_name,
             gallery_name=gallery_name,
             gallery_image_name=gallery_image_name,
@@ -3025,41 +2856,36 @@ class GalleryImageVersionsOperations:
             content_type=content_type,
             json=_json,
             content=_content,
-            template_url=self._create_or_update_initial.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
-        _stream = False
+        _stream = True
         pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
 
         if response.status_code not in [200, 201, 202]:
+            response.read()  # Load the body in memory and close the socket
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
         if response.status_code == 200:
-            deserialized = self._deserialize("GalleryImageVersion", pipeline_response)
+            deserialized = response.stream_download(self._client._pipeline)
 
         if response.status_code == 201:
-            deserialized = self._deserialize("GalleryImageVersion", pipeline_response)
+            deserialized = response.stream_download(self._client._pipeline)
 
         if response.status_code == 202:
-            deserialized = self._deserialize("GalleryImageVersion", pipeline_response)
+            deserialized = response.stream_download(self._client._pipeline)
 
         if cls:
             return cls(pipeline_response, deserialized, {})  # type: ignore
 
         return deserialized  # type: ignore
-
-    _create_or_update_initial.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/galleries/{galleryName}/images/{galleryImageName}/versions/{galleryImageVersionName}"
-    }
 
     @overload
     def begin_create_or_update(
@@ -3094,14 +2920,6 @@ class GalleryImageVersionsOperations:
         :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be ARMPolling. Pass in False for this
-         operation to not poll, or pass in your own initialized polling object for a personal polling
-         strategy.
-        :paramtype polling: bool or ~azure.core.polling.PollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of LROPoller that returns either GalleryImageVersion or the result of
          cls(response)
         :rtype:
@@ -3116,7 +2934,7 @@ class GalleryImageVersionsOperations:
         gallery_name: str,
         gallery_image_name: str,
         gallery_image_version_name: str,
-        gallery_image_version: IO,
+        gallery_image_version: IO[bytes],
         *,
         content_type: str = "application/json",
         **kwargs: Any
@@ -3138,18 +2956,10 @@ class GalleryImageVersionsOperations:
         :type gallery_image_version_name: str
         :param gallery_image_version: Parameters supplied to the create or update gallery image version
          operation. Required.
-        :type gallery_image_version: IO
+        :type gallery_image_version: IO[bytes]
         :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be ARMPolling. Pass in False for this
-         operation to not poll, or pass in your own initialized polling object for a personal polling
-         strategy.
-        :paramtype polling: bool or ~azure.core.polling.PollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of LROPoller that returns either GalleryImageVersion or the result of
          cls(response)
         :rtype:
@@ -3164,7 +2974,7 @@ class GalleryImageVersionsOperations:
         gallery_name: str,
         gallery_image_name: str,
         gallery_image_version_name: str,
-        gallery_image_version: Union[_models.GalleryImageVersion, IO],
+        gallery_image_version: Union[_models.GalleryImageVersion, IO[bytes]],
         **kwargs: Any
     ) -> LROPoller[_models.GalleryImageVersion]:
         """Create or update a gallery image version.
@@ -3183,19 +2993,9 @@ class GalleryImageVersionsOperations:
          :code:`<MajorVersion>`.:code:`<MinorVersion>`.:code:`<Patch>`. Required.
         :type gallery_image_version_name: str
         :param gallery_image_version: Parameters supplied to the create or update gallery image version
-         operation. Is either a GalleryImageVersion type or a IO type. Required.
-        :type gallery_image_version: ~azure.mgmt.compute.v2022_01_03.models.GalleryImageVersion or IO
-        :keyword content_type: Body Parameter content-type. Known values are: 'application/json'.
-         Default value is None.
-        :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be ARMPolling. Pass in False for this
-         operation to not poll, or pass in your own initialized polling object for a personal polling
-         strategy.
-        :paramtype polling: bool or ~azure.core.polling.PollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
+         operation. Is either a GalleryImageVersion type or a IO[bytes] type. Required.
+        :type gallery_image_version: ~azure.mgmt.compute.v2022_01_03.models.GalleryImageVersion or
+         IO[bytes]
         :return: An instance of LROPoller that returns either GalleryImageVersion or the result of
          cls(response)
         :rtype:
@@ -3225,12 +3025,13 @@ class GalleryImageVersionsOperations:
                 params=_params,
                 **kwargs
             )
+            raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):
-            deserialized = self._deserialize("GalleryImageVersion", pipeline_response)
+            deserialized = self._deserialize("GalleryImageVersion", pipeline_response.http_response)
             if cls:
-                return cls(pipeline_response, deserialized, {})
+                return cls(pipeline_response, deserialized, {})  # type: ignore
             return deserialized
 
         if polling is True:
@@ -3240,17 +3041,15 @@ class GalleryImageVersionsOperations:
         else:
             polling_method = polling
         if cont_token:
-            return LROPoller.from_continuation_token(
+            return LROPoller[_models.GalleryImageVersion].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return LROPoller(self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
-
-    begin_create_or_update.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/galleries/{galleryName}/images/{galleryImageName}/versions/{galleryImageVersionName}"
-    }
+        return LROPoller[_models.GalleryImageVersion](
+            self._client, raw_result, get_long_running_output, polling_method  # type: ignore
+        )
 
     def _update_initial(
         self,
@@ -3258,10 +3057,10 @@ class GalleryImageVersionsOperations:
         gallery_name: str,
         gallery_image_name: str,
         gallery_image_version_name: str,
-        gallery_image_version: Union[_models.GalleryImageVersionUpdate, IO],
+        gallery_image_version: Union[_models.GalleryImageVersionUpdate, IO[bytes]],
         **kwargs: Any
-    ) -> _models.GalleryImageVersion:
-        error_map = {
+    ) -> Iterator[bytes]:
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -3274,7 +3073,7 @@ class GalleryImageVersionsOperations:
 
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2022-01-03"))
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-        cls: ClsType[_models.GalleryImageVersion] = kwargs.pop("cls", None)
+        cls: ClsType[Iterator[bytes]] = kwargs.pop("cls", None)
 
         content_type = content_type or "application/json"
         _json = None
@@ -3284,7 +3083,7 @@ class GalleryImageVersionsOperations:
         else:
             _json = self._serialize.body(gallery_image_version, "GalleryImageVersionUpdate")
 
-        request = build_gallery_image_versions_update_request(
+        _request = build_gallery_image_versions_update_request(
             resource_group_name=resource_group_name,
             gallery_name=gallery_name,
             gallery_image_name=gallery_image_name,
@@ -3294,34 +3093,29 @@ class GalleryImageVersionsOperations:
             content_type=content_type,
             json=_json,
             content=_content,
-            template_url=self._update_initial.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
-        _stream = False
+        _stream = True
         pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
 
         if response.status_code not in [200]:
+            response.read()  # Load the body in memory and close the socket
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
-        deserialized = self._deserialize("GalleryImageVersion", pipeline_response)
+        deserialized = response.stream_download(self._client._pipeline)
 
         if cls:
-            return cls(pipeline_response, deserialized, {})
+            return cls(pipeline_response, deserialized, {})  # type: ignore
 
-        return deserialized
-
-    _update_initial.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/galleries/{galleryName}/images/{galleryImageName}/versions/{galleryImageVersionName}"
-    }
+        return deserialized  # type: ignore
 
     @overload
     def begin_update(
@@ -3356,14 +3150,6 @@ class GalleryImageVersionsOperations:
         :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be ARMPolling. Pass in False for this
-         operation to not poll, or pass in your own initialized polling object for a personal polling
-         strategy.
-        :paramtype polling: bool or ~azure.core.polling.PollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of LROPoller that returns either GalleryImageVersion or the result of
          cls(response)
         :rtype:
@@ -3378,7 +3164,7 @@ class GalleryImageVersionsOperations:
         gallery_name: str,
         gallery_image_name: str,
         gallery_image_version_name: str,
-        gallery_image_version: IO,
+        gallery_image_version: IO[bytes],
         *,
         content_type: str = "application/json",
         **kwargs: Any
@@ -3400,18 +3186,10 @@ class GalleryImageVersionsOperations:
         :type gallery_image_version_name: str
         :param gallery_image_version: Parameters supplied to the update gallery image version
          operation. Required.
-        :type gallery_image_version: IO
+        :type gallery_image_version: IO[bytes]
         :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be ARMPolling. Pass in False for this
-         operation to not poll, or pass in your own initialized polling object for a personal polling
-         strategy.
-        :paramtype polling: bool or ~azure.core.polling.PollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of LROPoller that returns either GalleryImageVersion or the result of
          cls(response)
         :rtype:
@@ -3426,7 +3204,7 @@ class GalleryImageVersionsOperations:
         gallery_name: str,
         gallery_image_name: str,
         gallery_image_version_name: str,
-        gallery_image_version: Union[_models.GalleryImageVersionUpdate, IO],
+        gallery_image_version: Union[_models.GalleryImageVersionUpdate, IO[bytes]],
         **kwargs: Any
     ) -> LROPoller[_models.GalleryImageVersion]:
         """Update a gallery image version.
@@ -3445,20 +3223,9 @@ class GalleryImageVersionsOperations:
          :code:`<MajorVersion>`.:code:`<MinorVersion>`.:code:`<Patch>`. Required.
         :type gallery_image_version_name: str
         :param gallery_image_version: Parameters supplied to the update gallery image version
-         operation. Is either a GalleryImageVersionUpdate type or a IO type. Required.
+         operation. Is either a GalleryImageVersionUpdate type or a IO[bytes] type. Required.
         :type gallery_image_version: ~azure.mgmt.compute.v2022_01_03.models.GalleryImageVersionUpdate
-         or IO
-        :keyword content_type: Body Parameter content-type. Known values are: 'application/json'.
-         Default value is None.
-        :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be ARMPolling. Pass in False for this
-         operation to not poll, or pass in your own initialized polling object for a personal polling
-         strategy.
-        :paramtype polling: bool or ~azure.core.polling.PollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
+         or IO[bytes]
         :return: An instance of LROPoller that returns either GalleryImageVersion or the result of
          cls(response)
         :rtype:
@@ -3488,12 +3255,13 @@ class GalleryImageVersionsOperations:
                 params=_params,
                 **kwargs
             )
+            raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):
-            deserialized = self._deserialize("GalleryImageVersion", pipeline_response)
+            deserialized = self._deserialize("GalleryImageVersion", pipeline_response.http_response)
             if cls:
-                return cls(pipeline_response, deserialized, {})
+                return cls(pipeline_response, deserialized, {})  # type: ignore
             return deserialized
 
         if polling is True:
@@ -3503,17 +3271,15 @@ class GalleryImageVersionsOperations:
         else:
             polling_method = polling
         if cont_token:
-            return LROPoller.from_continuation_token(
+            return LROPoller[_models.GalleryImageVersion].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return LROPoller(self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
-
-    begin_update.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/galleries/{galleryName}/images/{galleryImageName}/versions/{galleryImageVersionName}"
-    }
+        return LROPoller[_models.GalleryImageVersion](
+            self._client, raw_result, get_long_running_output, polling_method  # type: ignore
+        )
 
     @distributed_trace
     def get(
@@ -3542,12 +3308,11 @@ class GalleryImageVersionsOperations:
         :keyword expand: The expand expression to apply on the operation. "ReplicationStatus" Default
          value is None.
         :paramtype expand: str or ~azure.mgmt.compute.v2022_01_03.models.ReplicationStatusTypes
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: GalleryImageVersion or the result of cls(response)
         :rtype: ~azure.mgmt.compute.v2022_01_03.models.GalleryImageVersion
         :raises ~azure.core.exceptions.HttpResponseError:
         """
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -3561,7 +3326,7 @@ class GalleryImageVersionsOperations:
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2022-01-03"))
         cls: ClsType[_models.GalleryImageVersion] = kwargs.pop("cls", None)
 
-        request = build_gallery_image_versions_get_request(
+        _request = build_gallery_image_versions_get_request(
             resource_group_name=resource_group_name,
             gallery_name=gallery_name,
             gallery_image_name=gallery_image_name,
@@ -3569,16 +3334,14 @@ class GalleryImageVersionsOperations:
             subscription_id=self._config.subscription_id,
             expand=expand,
             api_version=api_version,
-            template_url=self.get.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
         _stream = False
         pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
@@ -3587,26 +3350,22 @@ class GalleryImageVersionsOperations:
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
-        deserialized = self._deserialize("GalleryImageVersion", pipeline_response)
+        deserialized = self._deserialize("GalleryImageVersion", pipeline_response.http_response)
 
         if cls:
-            return cls(pipeline_response, deserialized, {})
+            return cls(pipeline_response, deserialized, {})  # type: ignore
 
-        return deserialized
+        return deserialized  # type: ignore
 
-    get.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/galleries/{galleryName}/images/{galleryImageName}/versions/{galleryImageVersionName}"
-    }
-
-    def _delete_initial(  # pylint: disable=inconsistent-return-statements
+    def _delete_initial(
         self,
         resource_group_name: str,
         gallery_name: str,
         gallery_image_name: str,
         gallery_image_version_name: str,
         **kwargs: Any
-    ) -> None:
-        error_map = {
+    ) -> Iterator[bytes]:
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -3618,39 +3377,45 @@ class GalleryImageVersionsOperations:
         _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
 
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2022-01-03"))
-        cls: ClsType[None] = kwargs.pop("cls", None)
+        cls: ClsType[Iterator[bytes]] = kwargs.pop("cls", None)
 
-        request = build_gallery_image_versions_delete_request(
+        _request = build_gallery_image_versions_delete_request(
             resource_group_name=resource_group_name,
             gallery_name=gallery_name,
             gallery_image_name=gallery_image_name,
             gallery_image_version_name=gallery_image_version_name,
             subscription_id=self._config.subscription_id,
             api_version=api_version,
-            template_url=self._delete_initial.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
-        _stream = False
+        _stream = True
         pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
 
         if response.status_code not in [200, 202, 204]:
+            response.read()  # Load the body in memory and close the socket
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
-        if cls:
-            return cls(pipeline_response, None, {})
+        if response.status_code == 200:
+            deserialized = response.stream_download(self._client._pipeline)
 
-    _delete_initial.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/galleries/{galleryName}/images/{galleryImageName}/versions/{galleryImageVersionName}"
-    }
+        if response.status_code == 202:
+            deserialized = response.stream_download(self._client._pipeline)
+
+        if response.status_code == 204:
+            deserialized = response.stream_download(self._client._pipeline)
+
+        if cls:
+            return cls(pipeline_response, deserialized, {})  # type: ignore
+
+        return deserialized  # type: ignore
 
     @distributed_trace
     def begin_delete(
@@ -3674,14 +3439,6 @@ class GalleryImageVersionsOperations:
         :param gallery_image_version_name: The name of the gallery image version to be deleted.
          Required.
         :type gallery_image_version_name: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be ARMPolling. Pass in False for this
-         operation to not poll, or pass in your own initialized polling object for a personal polling
-         strategy.
-        :paramtype polling: bool or ~azure.core.polling.PollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of LROPoller that returns either None or the result of cls(response)
         :rtype: ~azure.core.polling.LROPoller[None]
         :raises ~azure.core.exceptions.HttpResponseError:
@@ -3695,7 +3452,7 @@ class GalleryImageVersionsOperations:
         lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
         cont_token: Optional[str] = kwargs.pop("continuation_token", None)
         if cont_token is None:
-            raw_result = self._delete_initial(  # type: ignore
+            raw_result = self._delete_initial(
                 resource_group_name=resource_group_name,
                 gallery_name=gallery_name,
                 gallery_image_name=gallery_image_name,
@@ -3706,11 +3463,12 @@ class GalleryImageVersionsOperations:
                 params=_params,
                 **kwargs
             )
+            raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):  # pylint: disable=inconsistent-return-statements
             if cls:
-                return cls(pipeline_response, None, {})
+                return cls(pipeline_response, None, {})  # type: ignore
 
         if polling is True:
             polling_method: PollingMethod = cast(PollingMethod, ARMPolling(lro_delay, **kwargs))
@@ -3719,17 +3477,13 @@ class GalleryImageVersionsOperations:
         else:
             polling_method = polling
         if cont_token:
-            return LROPoller.from_continuation_token(
+            return LROPoller[None].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return LROPoller(self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
-
-    begin_delete.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/galleries/{galleryName}/images/{galleryImageName}/versions/{galleryImageVersionName}"
-    }
+        return LROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
 
     @distributed_trace
     def list_by_gallery_image(
@@ -3745,7 +3499,6 @@ class GalleryImageVersionsOperations:
         :param gallery_image_name: The name of the Shared Image Gallery Image Definition from which the
          Image Versions are to be listed. Required.
         :type gallery_image_name: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: An iterator like instance of either GalleryImageVersion or the result of cls(response)
         :rtype:
          ~azure.core.paging.ItemPaged[~azure.mgmt.compute.v2022_01_03.models.GalleryImageVersion]
@@ -3757,7 +3510,7 @@ class GalleryImageVersionsOperations:
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2022-01-03"))
         cls: ClsType[_models.GalleryImageVersionList] = kwargs.pop("cls", None)
 
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -3768,18 +3521,16 @@ class GalleryImageVersionsOperations:
         def prepare_request(next_link=None):
             if not next_link:
 
-                request = build_gallery_image_versions_list_by_gallery_image_request(
+                _request = build_gallery_image_versions_list_by_gallery_image_request(
                     resource_group_name=resource_group_name,
                     gallery_name=gallery_name,
                     gallery_image_name=gallery_image_name,
                     subscription_id=self._config.subscription_id,
                     api_version=api_version,
-                    template_url=self.list_by_gallery_image.metadata["url"],
                     headers=_headers,
                     params=_params,
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
+                _request.url = self._client.format_url(_request.url)
 
             else:
                 # make call to next link with the client's api-version
@@ -3790,14 +3541,13 @@ class GalleryImageVersionsOperations:
                         for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
                     }
                 )
-                _next_request_params["api-version"] = self._config.api_version
-                request = HttpRequest(
+                _next_request_params["api-version"] = self._api_version
+                _request = HttpRequest(
                     "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
-                request.method = "GET"
-            return request
+                _request.url = self._client.format_url(_request.url)
+                _request.method = "GET"
+            return _request
 
         def extract_data(pipeline_response):
             deserialized = self._deserialize("GalleryImageVersionList", pipeline_response)
@@ -3807,11 +3557,11 @@ class GalleryImageVersionsOperations:
             return deserialized.next_link or None, iter(list_of_elem)
 
         def get_next(next_link=None):
-            request = prepare_request(next_link)
+            _request = prepare_request(next_link)
 
             _stream = False
             pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
-                request, stream=_stream, **kwargs
+                _request, stream=_stream, **kwargs
             )
             response = pipeline_response.http_response
 
@@ -3822,10 +3572,6 @@ class GalleryImageVersionsOperations:
             return pipeline_response
 
         return ItemPaged(get_next, extract_data)
-
-    list_by_gallery_image.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/galleries/{galleryName}/images/{galleryImageName}/versions"
-    }
 
 
 class GalleryApplicationsOperations:
@@ -3853,10 +3599,10 @@ class GalleryApplicationsOperations:
         resource_group_name: str,
         gallery_name: str,
         gallery_application_name: str,
-        gallery_application: Union[_models.GalleryApplication, IO],
+        gallery_application: Union[_models.GalleryApplication, IO[bytes]],
         **kwargs: Any
-    ) -> _models.GalleryApplication:
-        error_map = {
+    ) -> Iterator[bytes]:
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -3869,7 +3615,7 @@ class GalleryApplicationsOperations:
 
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2022-01-03"))
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-        cls: ClsType[_models.GalleryApplication] = kwargs.pop("cls", None)
+        cls: ClsType[Iterator[bytes]] = kwargs.pop("cls", None)
 
         content_type = content_type or "application/json"
         _json = None
@@ -3879,7 +3625,7 @@ class GalleryApplicationsOperations:
         else:
             _json = self._serialize.body(gallery_application, "GalleryApplication")
 
-        request = build_gallery_applications_create_or_update_request(
+        _request = build_gallery_applications_create_or_update_request(
             resource_group_name=resource_group_name,
             gallery_name=gallery_name,
             gallery_application_name=gallery_application_name,
@@ -3888,41 +3634,36 @@ class GalleryApplicationsOperations:
             content_type=content_type,
             json=_json,
             content=_content,
-            template_url=self._create_or_update_initial.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
-        _stream = False
+        _stream = True
         pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
 
         if response.status_code not in [200, 201, 202]:
+            response.read()  # Load the body in memory and close the socket
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
         if response.status_code == 200:
-            deserialized = self._deserialize("GalleryApplication", pipeline_response)
+            deserialized = response.stream_download(self._client._pipeline)
 
         if response.status_code == 201:
-            deserialized = self._deserialize("GalleryApplication", pipeline_response)
+            deserialized = response.stream_download(self._client._pipeline)
 
         if response.status_code == 202:
-            deserialized = self._deserialize("GalleryApplication", pipeline_response)
+            deserialized = response.stream_download(self._client._pipeline)
 
         if cls:
             return cls(pipeline_response, deserialized, {})  # type: ignore
 
         return deserialized  # type: ignore
-
-    _create_or_update_initial.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/galleries/{galleryName}/applications/{galleryApplicationName}"
-    }
 
     @overload
     def begin_create_or_update(
@@ -3952,14 +3693,6 @@ class GalleryApplicationsOperations:
         :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be ARMPolling. Pass in False for this
-         operation to not poll, or pass in your own initialized polling object for a personal polling
-         strategy.
-        :paramtype polling: bool or ~azure.core.polling.PollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of LROPoller that returns either GalleryApplication or the result of
          cls(response)
         :rtype:
@@ -3973,7 +3706,7 @@ class GalleryApplicationsOperations:
         resource_group_name: str,
         gallery_name: str,
         gallery_application_name: str,
-        gallery_application: IO,
+        gallery_application: IO[bytes],
         *,
         content_type: str = "application/json",
         **kwargs: Any
@@ -3991,18 +3724,10 @@ class GalleryApplicationsOperations:
         :type gallery_application_name: str
         :param gallery_application: Parameters supplied to the create or update gallery Application
          operation. Required.
-        :type gallery_application: IO
+        :type gallery_application: IO[bytes]
         :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be ARMPolling. Pass in False for this
-         operation to not poll, or pass in your own initialized polling object for a personal polling
-         strategy.
-        :paramtype polling: bool or ~azure.core.polling.PollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of LROPoller that returns either GalleryApplication or the result of
          cls(response)
         :rtype:
@@ -4016,7 +3741,7 @@ class GalleryApplicationsOperations:
         resource_group_name: str,
         gallery_name: str,
         gallery_application_name: str,
-        gallery_application: Union[_models.GalleryApplication, IO],
+        gallery_application: Union[_models.GalleryApplication, IO[bytes]],
         **kwargs: Any
     ) -> LROPoller[_models.GalleryApplication]:
         """Create or update a gallery Application Definition.
@@ -4031,19 +3756,9 @@ class GalleryApplicationsOperations:
          allowed in the middle. The maximum length is 80 characters. Required.
         :type gallery_application_name: str
         :param gallery_application: Parameters supplied to the create or update gallery Application
-         operation. Is either a GalleryApplication type or a IO type. Required.
-        :type gallery_application: ~azure.mgmt.compute.v2022_01_03.models.GalleryApplication or IO
-        :keyword content_type: Body Parameter content-type. Known values are: 'application/json'.
-         Default value is None.
-        :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be ARMPolling. Pass in False for this
-         operation to not poll, or pass in your own initialized polling object for a personal polling
-         strategy.
-        :paramtype polling: bool or ~azure.core.polling.PollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
+         operation. Is either a GalleryApplication type or a IO[bytes] type. Required.
+        :type gallery_application: ~azure.mgmt.compute.v2022_01_03.models.GalleryApplication or
+         IO[bytes]
         :return: An instance of LROPoller that returns either GalleryApplication or the result of
          cls(response)
         :rtype:
@@ -4072,12 +3787,13 @@ class GalleryApplicationsOperations:
                 params=_params,
                 **kwargs
             )
+            raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):
-            deserialized = self._deserialize("GalleryApplication", pipeline_response)
+            deserialized = self._deserialize("GalleryApplication", pipeline_response.http_response)
             if cls:
-                return cls(pipeline_response, deserialized, {})
+                return cls(pipeline_response, deserialized, {})  # type: ignore
             return deserialized
 
         if polling is True:
@@ -4087,27 +3803,25 @@ class GalleryApplicationsOperations:
         else:
             polling_method = polling
         if cont_token:
-            return LROPoller.from_continuation_token(
+            return LROPoller[_models.GalleryApplication].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return LROPoller(self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
-
-    begin_create_or_update.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/galleries/{galleryName}/applications/{galleryApplicationName}"
-    }
+        return LROPoller[_models.GalleryApplication](
+            self._client, raw_result, get_long_running_output, polling_method  # type: ignore
+        )
 
     def _update_initial(
         self,
         resource_group_name: str,
         gallery_name: str,
         gallery_application_name: str,
-        gallery_application: Union[_models.GalleryApplicationUpdate, IO],
+        gallery_application: Union[_models.GalleryApplicationUpdate, IO[bytes]],
         **kwargs: Any
-    ) -> _models.GalleryApplication:
-        error_map = {
+    ) -> Iterator[bytes]:
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -4120,7 +3834,7 @@ class GalleryApplicationsOperations:
 
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2022-01-03"))
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-        cls: ClsType[_models.GalleryApplication] = kwargs.pop("cls", None)
+        cls: ClsType[Iterator[bytes]] = kwargs.pop("cls", None)
 
         content_type = content_type or "application/json"
         _json = None
@@ -4130,7 +3844,7 @@ class GalleryApplicationsOperations:
         else:
             _json = self._serialize.body(gallery_application, "GalleryApplicationUpdate")
 
-        request = build_gallery_applications_update_request(
+        _request = build_gallery_applications_update_request(
             resource_group_name=resource_group_name,
             gallery_name=gallery_name,
             gallery_application_name=gallery_application_name,
@@ -4139,34 +3853,29 @@ class GalleryApplicationsOperations:
             content_type=content_type,
             json=_json,
             content=_content,
-            template_url=self._update_initial.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
-        _stream = False
+        _stream = True
         pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
 
         if response.status_code not in [200]:
+            response.read()  # Load the body in memory and close the socket
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
-        deserialized = self._deserialize("GalleryApplication", pipeline_response)
+        deserialized = response.stream_download(self._client._pipeline)
 
         if cls:
-            return cls(pipeline_response, deserialized, {})
+            return cls(pipeline_response, deserialized, {})  # type: ignore
 
-        return deserialized
-
-    _update_initial.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/galleries/{galleryName}/applications/{galleryApplicationName}"
-    }
+        return deserialized  # type: ignore
 
     @overload
     def begin_update(
@@ -4196,14 +3905,6 @@ class GalleryApplicationsOperations:
         :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be ARMPolling. Pass in False for this
-         operation to not poll, or pass in your own initialized polling object for a personal polling
-         strategy.
-        :paramtype polling: bool or ~azure.core.polling.PollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of LROPoller that returns either GalleryApplication or the result of
          cls(response)
         :rtype:
@@ -4217,7 +3918,7 @@ class GalleryApplicationsOperations:
         resource_group_name: str,
         gallery_name: str,
         gallery_application_name: str,
-        gallery_application: IO,
+        gallery_application: IO[bytes],
         *,
         content_type: str = "application/json",
         **kwargs: Any
@@ -4235,18 +3936,10 @@ class GalleryApplicationsOperations:
         :type gallery_application_name: str
         :param gallery_application: Parameters supplied to the update gallery Application operation.
          Required.
-        :type gallery_application: IO
+        :type gallery_application: IO[bytes]
         :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be ARMPolling. Pass in False for this
-         operation to not poll, or pass in your own initialized polling object for a personal polling
-         strategy.
-        :paramtype polling: bool or ~azure.core.polling.PollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of LROPoller that returns either GalleryApplication or the result of
          cls(response)
         :rtype:
@@ -4260,7 +3953,7 @@ class GalleryApplicationsOperations:
         resource_group_name: str,
         gallery_name: str,
         gallery_application_name: str,
-        gallery_application: Union[_models.GalleryApplicationUpdate, IO],
+        gallery_application: Union[_models.GalleryApplicationUpdate, IO[bytes]],
         **kwargs: Any
     ) -> LROPoller[_models.GalleryApplication]:
         """Update a gallery Application Definition.
@@ -4275,20 +3968,9 @@ class GalleryApplicationsOperations:
          middle. The maximum length is 80 characters. Required.
         :type gallery_application_name: str
         :param gallery_application: Parameters supplied to the update gallery Application operation. Is
-         either a GalleryApplicationUpdate type or a IO type. Required.
+         either a GalleryApplicationUpdate type or a IO[bytes] type. Required.
         :type gallery_application: ~azure.mgmt.compute.v2022_01_03.models.GalleryApplicationUpdate or
-         IO
-        :keyword content_type: Body Parameter content-type. Known values are: 'application/json'.
-         Default value is None.
-        :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be ARMPolling. Pass in False for this
-         operation to not poll, or pass in your own initialized polling object for a personal polling
-         strategy.
-        :paramtype polling: bool or ~azure.core.polling.PollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
+         IO[bytes]
         :return: An instance of LROPoller that returns either GalleryApplication or the result of
          cls(response)
         :rtype:
@@ -4317,12 +3999,13 @@ class GalleryApplicationsOperations:
                 params=_params,
                 **kwargs
             )
+            raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):
-            deserialized = self._deserialize("GalleryApplication", pipeline_response)
+            deserialized = self._deserialize("GalleryApplication", pipeline_response.http_response)
             if cls:
-                return cls(pipeline_response, deserialized, {})
+                return cls(pipeline_response, deserialized, {})  # type: ignore
             return deserialized
 
         if polling is True:
@@ -4332,17 +4015,15 @@ class GalleryApplicationsOperations:
         else:
             polling_method = polling
         if cont_token:
-            return LROPoller.from_continuation_token(
+            return LROPoller[_models.GalleryApplication].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return LROPoller(self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
-
-    begin_update.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/galleries/{galleryName}/applications/{galleryApplicationName}"
-    }
+        return LROPoller[_models.GalleryApplication](
+            self._client, raw_result, get_long_running_output, polling_method  # type: ignore
+        )
 
     @distributed_trace
     def get(
@@ -4358,12 +4039,11 @@ class GalleryApplicationsOperations:
         :param gallery_application_name: The name of the gallery Application Definition to be
          retrieved. Required.
         :type gallery_application_name: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: GalleryApplication or the result of cls(response)
         :rtype: ~azure.mgmt.compute.v2022_01_03.models.GalleryApplication
         :raises ~azure.core.exceptions.HttpResponseError:
         """
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -4377,22 +4057,20 @@ class GalleryApplicationsOperations:
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2022-01-03"))
         cls: ClsType[_models.GalleryApplication] = kwargs.pop("cls", None)
 
-        request = build_gallery_applications_get_request(
+        _request = build_gallery_applications_get_request(
             resource_group_name=resource_group_name,
             gallery_name=gallery_name,
             gallery_application_name=gallery_application_name,
             subscription_id=self._config.subscription_id,
             api_version=api_version,
-            template_url=self.get.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
         _stream = False
         pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
@@ -4401,21 +4079,17 @@ class GalleryApplicationsOperations:
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
-        deserialized = self._deserialize("GalleryApplication", pipeline_response)
+        deserialized = self._deserialize("GalleryApplication", pipeline_response.http_response)
 
         if cls:
-            return cls(pipeline_response, deserialized, {})
+            return cls(pipeline_response, deserialized, {})  # type: ignore
 
-        return deserialized
+        return deserialized  # type: ignore
 
-    get.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/galleries/{galleryName}/applications/{galleryApplicationName}"
-    }
-
-    def _delete_initial(  # pylint: disable=inconsistent-return-statements
+    def _delete_initial(
         self, resource_group_name: str, gallery_name: str, gallery_application_name: str, **kwargs: Any
-    ) -> None:
-        error_map = {
+    ) -> Iterator[bytes]:
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -4427,38 +4101,44 @@ class GalleryApplicationsOperations:
         _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
 
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2022-01-03"))
-        cls: ClsType[None] = kwargs.pop("cls", None)
+        cls: ClsType[Iterator[bytes]] = kwargs.pop("cls", None)
 
-        request = build_gallery_applications_delete_request(
+        _request = build_gallery_applications_delete_request(
             resource_group_name=resource_group_name,
             gallery_name=gallery_name,
             gallery_application_name=gallery_application_name,
             subscription_id=self._config.subscription_id,
             api_version=api_version,
-            template_url=self._delete_initial.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
-        _stream = False
+        _stream = True
         pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
 
         if response.status_code not in [200, 202, 204]:
+            response.read()  # Load the body in memory and close the socket
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
-        if cls:
-            return cls(pipeline_response, None, {})
+        if response.status_code == 200:
+            deserialized = response.stream_download(self._client._pipeline)
 
-    _delete_initial.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/galleries/{galleryName}/applications/{galleryApplicationName}"
-    }
+        if response.status_code == 202:
+            deserialized = response.stream_download(self._client._pipeline)
+
+        if response.status_code == 204:
+            deserialized = response.stream_download(self._client._pipeline)
+
+        if cls:
+            return cls(pipeline_response, deserialized, {})  # type: ignore
+
+        return deserialized  # type: ignore
 
     @distributed_trace
     def begin_delete(
@@ -4474,14 +4154,6 @@ class GalleryApplicationsOperations:
         :param gallery_application_name: The name of the gallery Application Definition to be deleted.
          Required.
         :type gallery_application_name: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be ARMPolling. Pass in False for this
-         operation to not poll, or pass in your own initialized polling object for a personal polling
-         strategy.
-        :paramtype polling: bool or ~azure.core.polling.PollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of LROPoller that returns either None or the result of cls(response)
         :rtype: ~azure.core.polling.LROPoller[None]
         :raises ~azure.core.exceptions.HttpResponseError:
@@ -4495,7 +4167,7 @@ class GalleryApplicationsOperations:
         lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
         cont_token: Optional[str] = kwargs.pop("continuation_token", None)
         if cont_token is None:
-            raw_result = self._delete_initial(  # type: ignore
+            raw_result = self._delete_initial(
                 resource_group_name=resource_group_name,
                 gallery_name=gallery_name,
                 gallery_application_name=gallery_application_name,
@@ -4505,11 +4177,12 @@ class GalleryApplicationsOperations:
                 params=_params,
                 **kwargs
             )
+            raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):  # pylint: disable=inconsistent-return-statements
             if cls:
-                return cls(pipeline_response, None, {})
+                return cls(pipeline_response, None, {})  # type: ignore
 
         if polling is True:
             polling_method: PollingMethod = cast(PollingMethod, ARMPolling(lro_delay, **kwargs))
@@ -4518,17 +4191,13 @@ class GalleryApplicationsOperations:
         else:
             polling_method = polling
         if cont_token:
-            return LROPoller.from_continuation_token(
+            return LROPoller[None].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return LROPoller(self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
-
-    begin_delete.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/galleries/{galleryName}/applications/{galleryApplicationName}"
-    }
+        return LROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
 
     @distributed_trace
     def list_by_gallery(
@@ -4541,7 +4210,6 @@ class GalleryApplicationsOperations:
         :param gallery_name: The name of the Shared Application Gallery from which Application
          Definitions are to be listed. Required.
         :type gallery_name: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: An iterator like instance of either GalleryApplication or the result of cls(response)
         :rtype: ~azure.core.paging.ItemPaged[~azure.mgmt.compute.v2022_01_03.models.GalleryApplication]
         :raises ~azure.core.exceptions.HttpResponseError:
@@ -4552,7 +4220,7 @@ class GalleryApplicationsOperations:
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2022-01-03"))
         cls: ClsType[_models.GalleryApplicationList] = kwargs.pop("cls", None)
 
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -4563,17 +4231,15 @@ class GalleryApplicationsOperations:
         def prepare_request(next_link=None):
             if not next_link:
 
-                request = build_gallery_applications_list_by_gallery_request(
+                _request = build_gallery_applications_list_by_gallery_request(
                     resource_group_name=resource_group_name,
                     gallery_name=gallery_name,
                     subscription_id=self._config.subscription_id,
                     api_version=api_version,
-                    template_url=self.list_by_gallery.metadata["url"],
                     headers=_headers,
                     params=_params,
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
+                _request.url = self._client.format_url(_request.url)
 
             else:
                 # make call to next link with the client's api-version
@@ -4584,14 +4250,13 @@ class GalleryApplicationsOperations:
                         for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
                     }
                 )
-                _next_request_params["api-version"] = self._config.api_version
-                request = HttpRequest(
+                _next_request_params["api-version"] = self._api_version
+                _request = HttpRequest(
                     "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
-                request.method = "GET"
-            return request
+                _request.url = self._client.format_url(_request.url)
+                _request.method = "GET"
+            return _request
 
         def extract_data(pipeline_response):
             deserialized = self._deserialize("GalleryApplicationList", pipeline_response)
@@ -4601,11 +4266,11 @@ class GalleryApplicationsOperations:
             return deserialized.next_link or None, iter(list_of_elem)
 
         def get_next(next_link=None):
-            request = prepare_request(next_link)
+            _request = prepare_request(next_link)
 
             _stream = False
             pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
-                request, stream=_stream, **kwargs
+                _request, stream=_stream, **kwargs
             )
             response = pipeline_response.http_response
 
@@ -4616,10 +4281,6 @@ class GalleryApplicationsOperations:
             return pipeline_response
 
         return ItemPaged(get_next, extract_data)
-
-    list_by_gallery.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/galleries/{galleryName}/applications"
-    }
 
 
 class GalleryApplicationVersionsOperations:
@@ -4648,10 +4309,10 @@ class GalleryApplicationVersionsOperations:
         gallery_name: str,
         gallery_application_name: str,
         gallery_application_version_name: str,
-        gallery_application_version: Union[_models.GalleryApplicationVersion, IO],
+        gallery_application_version: Union[_models.GalleryApplicationVersion, IO[bytes]],
         **kwargs: Any
-    ) -> _models.GalleryApplicationVersion:
-        error_map = {
+    ) -> Iterator[bytes]:
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -4664,7 +4325,7 @@ class GalleryApplicationVersionsOperations:
 
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2022-01-03"))
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-        cls: ClsType[_models.GalleryApplicationVersion] = kwargs.pop("cls", None)
+        cls: ClsType[Iterator[bytes]] = kwargs.pop("cls", None)
 
         content_type = content_type or "application/json"
         _json = None
@@ -4674,7 +4335,7 @@ class GalleryApplicationVersionsOperations:
         else:
             _json = self._serialize.body(gallery_application_version, "GalleryApplicationVersion")
 
-        request = build_gallery_application_versions_create_or_update_request(
+        _request = build_gallery_application_versions_create_or_update_request(
             resource_group_name=resource_group_name,
             gallery_name=gallery_name,
             gallery_application_name=gallery_application_name,
@@ -4684,41 +4345,36 @@ class GalleryApplicationVersionsOperations:
             content_type=content_type,
             json=_json,
             content=_content,
-            template_url=self._create_or_update_initial.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
-        _stream = False
+        _stream = True
         pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
 
         if response.status_code not in [200, 201, 202]:
+            response.read()  # Load the body in memory and close the socket
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
         if response.status_code == 200:
-            deserialized = self._deserialize("GalleryApplicationVersion", pipeline_response)
+            deserialized = response.stream_download(self._client._pipeline)
 
         if response.status_code == 201:
-            deserialized = self._deserialize("GalleryApplicationVersion", pipeline_response)
+            deserialized = response.stream_download(self._client._pipeline)
 
         if response.status_code == 202:
-            deserialized = self._deserialize("GalleryApplicationVersion", pipeline_response)
+            deserialized = response.stream_download(self._client._pipeline)
 
         if cls:
             return cls(pipeline_response, deserialized, {})  # type: ignore
 
         return deserialized  # type: ignore
-
-    _create_or_update_initial.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/galleries/{galleryName}/applications/{galleryApplicationName}/versions/{galleryApplicationVersionName}"
-    }
 
     @overload
     def begin_create_or_update(
@@ -4754,14 +4410,6 @@ class GalleryApplicationVersionsOperations:
         :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be ARMPolling. Pass in False for this
-         operation to not poll, or pass in your own initialized polling object for a personal polling
-         strategy.
-        :paramtype polling: bool or ~azure.core.polling.PollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of LROPoller that returns either GalleryApplicationVersion or the result
          of cls(response)
         :rtype:
@@ -4776,7 +4424,7 @@ class GalleryApplicationVersionsOperations:
         gallery_name: str,
         gallery_application_name: str,
         gallery_application_version_name: str,
-        gallery_application_version: IO,
+        gallery_application_version: IO[bytes],
         *,
         content_type: str = "application/json",
         **kwargs: Any
@@ -4798,18 +4446,10 @@ class GalleryApplicationVersionsOperations:
         :type gallery_application_version_name: str
         :param gallery_application_version: Parameters supplied to the create or update gallery
          Application Version operation. Required.
-        :type gallery_application_version: IO
+        :type gallery_application_version: IO[bytes]
         :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be ARMPolling. Pass in False for this
-         operation to not poll, or pass in your own initialized polling object for a personal polling
-         strategy.
-        :paramtype polling: bool or ~azure.core.polling.PollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of LROPoller that returns either GalleryApplicationVersion or the result
          of cls(response)
         :rtype:
@@ -4824,7 +4464,7 @@ class GalleryApplicationVersionsOperations:
         gallery_name: str,
         gallery_application_name: str,
         gallery_application_version_name: str,
-        gallery_application_version: Union[_models.GalleryApplicationVersion, IO],
+        gallery_application_version: Union[_models.GalleryApplicationVersion, IO[bytes]],
         **kwargs: Any
     ) -> LROPoller[_models.GalleryApplicationVersion]:
         """Create or update a gallery Application Version.
@@ -4843,21 +4483,10 @@ class GalleryApplicationVersionsOperations:
          :code:`<MajorVersion>`.:code:`<MinorVersion>`.:code:`<Patch>`. Required.
         :type gallery_application_version_name: str
         :param gallery_application_version: Parameters supplied to the create or update gallery
-         Application Version operation. Is either a GalleryApplicationVersion type or a IO type.
+         Application Version operation. Is either a GalleryApplicationVersion type or a IO[bytes] type.
          Required.
         :type gallery_application_version:
-         ~azure.mgmt.compute.v2022_01_03.models.GalleryApplicationVersion or IO
-        :keyword content_type: Body Parameter content-type. Known values are: 'application/json'.
-         Default value is None.
-        :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be ARMPolling. Pass in False for this
-         operation to not poll, or pass in your own initialized polling object for a personal polling
-         strategy.
-        :paramtype polling: bool or ~azure.core.polling.PollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
+         ~azure.mgmt.compute.v2022_01_03.models.GalleryApplicationVersion or IO[bytes]
         :return: An instance of LROPoller that returns either GalleryApplicationVersion or the result
          of cls(response)
         :rtype:
@@ -4887,12 +4516,13 @@ class GalleryApplicationVersionsOperations:
                 params=_params,
                 **kwargs
             )
+            raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):
-            deserialized = self._deserialize("GalleryApplicationVersion", pipeline_response)
+            deserialized = self._deserialize("GalleryApplicationVersion", pipeline_response.http_response)
             if cls:
-                return cls(pipeline_response, deserialized, {})
+                return cls(pipeline_response, deserialized, {})  # type: ignore
             return deserialized
 
         if polling is True:
@@ -4902,17 +4532,15 @@ class GalleryApplicationVersionsOperations:
         else:
             polling_method = polling
         if cont_token:
-            return LROPoller.from_continuation_token(
+            return LROPoller[_models.GalleryApplicationVersion].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return LROPoller(self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
-
-    begin_create_or_update.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/galleries/{galleryName}/applications/{galleryApplicationName}/versions/{galleryApplicationVersionName}"
-    }
+        return LROPoller[_models.GalleryApplicationVersion](
+            self._client, raw_result, get_long_running_output, polling_method  # type: ignore
+        )
 
     def _update_initial(
         self,
@@ -4920,10 +4548,10 @@ class GalleryApplicationVersionsOperations:
         gallery_name: str,
         gallery_application_name: str,
         gallery_application_version_name: str,
-        gallery_application_version: Union[_models.GalleryApplicationVersionUpdate, IO],
+        gallery_application_version: Union[_models.GalleryApplicationVersionUpdate, IO[bytes]],
         **kwargs: Any
-    ) -> _models.GalleryApplicationVersion:
-        error_map = {
+    ) -> Iterator[bytes]:
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -4936,7 +4564,7 @@ class GalleryApplicationVersionsOperations:
 
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2022-01-03"))
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-        cls: ClsType[_models.GalleryApplicationVersion] = kwargs.pop("cls", None)
+        cls: ClsType[Iterator[bytes]] = kwargs.pop("cls", None)
 
         content_type = content_type or "application/json"
         _json = None
@@ -4946,7 +4574,7 @@ class GalleryApplicationVersionsOperations:
         else:
             _json = self._serialize.body(gallery_application_version, "GalleryApplicationVersionUpdate")
 
-        request = build_gallery_application_versions_update_request(
+        _request = build_gallery_application_versions_update_request(
             resource_group_name=resource_group_name,
             gallery_name=gallery_name,
             gallery_application_name=gallery_application_name,
@@ -4956,34 +4584,29 @@ class GalleryApplicationVersionsOperations:
             content_type=content_type,
             json=_json,
             content=_content,
-            template_url=self._update_initial.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
-        _stream = False
+        _stream = True
         pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
 
         if response.status_code not in [200]:
+            response.read()  # Load the body in memory and close the socket
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
-        deserialized = self._deserialize("GalleryApplicationVersion", pipeline_response)
+        deserialized = response.stream_download(self._client._pipeline)
 
         if cls:
-            return cls(pipeline_response, deserialized, {})
+            return cls(pipeline_response, deserialized, {})  # type: ignore
 
-        return deserialized
-
-    _update_initial.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/galleries/{galleryName}/applications/{galleryApplicationName}/versions/{galleryApplicationVersionName}"
-    }
+        return deserialized  # type: ignore
 
     @overload
     def begin_update(
@@ -5019,14 +4642,6 @@ class GalleryApplicationVersionsOperations:
         :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be ARMPolling. Pass in False for this
-         operation to not poll, or pass in your own initialized polling object for a personal polling
-         strategy.
-        :paramtype polling: bool or ~azure.core.polling.PollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of LROPoller that returns either GalleryApplicationVersion or the result
          of cls(response)
         :rtype:
@@ -5041,7 +4656,7 @@ class GalleryApplicationVersionsOperations:
         gallery_name: str,
         gallery_application_name: str,
         gallery_application_version_name: str,
-        gallery_application_version: IO,
+        gallery_application_version: IO[bytes],
         *,
         content_type: str = "application/json",
         **kwargs: Any
@@ -5063,18 +4678,10 @@ class GalleryApplicationVersionsOperations:
         :type gallery_application_version_name: str
         :param gallery_application_version: Parameters supplied to the update gallery Application
          Version operation. Required.
-        :type gallery_application_version: IO
+        :type gallery_application_version: IO[bytes]
         :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be ARMPolling. Pass in False for this
-         operation to not poll, or pass in your own initialized polling object for a personal polling
-         strategy.
-        :paramtype polling: bool or ~azure.core.polling.PollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of LROPoller that returns either GalleryApplicationVersion or the result
          of cls(response)
         :rtype:
@@ -5089,7 +4696,7 @@ class GalleryApplicationVersionsOperations:
         gallery_name: str,
         gallery_application_name: str,
         gallery_application_version_name: str,
-        gallery_application_version: Union[_models.GalleryApplicationVersionUpdate, IO],
+        gallery_application_version: Union[_models.GalleryApplicationVersionUpdate, IO[bytes]],
         **kwargs: Any
     ) -> LROPoller[_models.GalleryApplicationVersion]:
         """Update a gallery Application Version.
@@ -5108,20 +4715,10 @@ class GalleryApplicationVersionsOperations:
          :code:`<MajorVersion>`.:code:`<MinorVersion>`.:code:`<Patch>`. Required.
         :type gallery_application_version_name: str
         :param gallery_application_version: Parameters supplied to the update gallery Application
-         Version operation. Is either a GalleryApplicationVersionUpdate type or a IO type. Required.
+         Version operation. Is either a GalleryApplicationVersionUpdate type or a IO[bytes] type.
+         Required.
         :type gallery_application_version:
-         ~azure.mgmt.compute.v2022_01_03.models.GalleryApplicationVersionUpdate or IO
-        :keyword content_type: Body Parameter content-type. Known values are: 'application/json'.
-         Default value is None.
-        :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be ARMPolling. Pass in False for this
-         operation to not poll, or pass in your own initialized polling object for a personal polling
-         strategy.
-        :paramtype polling: bool or ~azure.core.polling.PollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
+         ~azure.mgmt.compute.v2022_01_03.models.GalleryApplicationVersionUpdate or IO[bytes]
         :return: An instance of LROPoller that returns either GalleryApplicationVersion or the result
          of cls(response)
         :rtype:
@@ -5151,12 +4748,13 @@ class GalleryApplicationVersionsOperations:
                 params=_params,
                 **kwargs
             )
+            raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):
-            deserialized = self._deserialize("GalleryApplicationVersion", pipeline_response)
+            deserialized = self._deserialize("GalleryApplicationVersion", pipeline_response.http_response)
             if cls:
-                return cls(pipeline_response, deserialized, {})
+                return cls(pipeline_response, deserialized, {})  # type: ignore
             return deserialized
 
         if polling is True:
@@ -5166,17 +4764,15 @@ class GalleryApplicationVersionsOperations:
         else:
             polling_method = polling
         if cont_token:
-            return LROPoller.from_continuation_token(
+            return LROPoller[_models.GalleryApplicationVersion].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return LROPoller(self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
-
-    begin_update.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/galleries/{galleryName}/applications/{galleryApplicationName}/versions/{galleryApplicationVersionName}"
-    }
+        return LROPoller[_models.GalleryApplicationVersion](
+            self._client, raw_result, get_long_running_output, polling_method  # type: ignore
+        )
 
     @distributed_trace
     def get(
@@ -5205,12 +4801,11 @@ class GalleryApplicationVersionsOperations:
         :keyword expand: The expand expression to apply on the operation. "ReplicationStatus" Default
          value is None.
         :paramtype expand: str or ~azure.mgmt.compute.v2022_01_03.models.ReplicationStatusTypes
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: GalleryApplicationVersion or the result of cls(response)
         :rtype: ~azure.mgmt.compute.v2022_01_03.models.GalleryApplicationVersion
         :raises ~azure.core.exceptions.HttpResponseError:
         """
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -5224,7 +4819,7 @@ class GalleryApplicationVersionsOperations:
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2022-01-03"))
         cls: ClsType[_models.GalleryApplicationVersion] = kwargs.pop("cls", None)
 
-        request = build_gallery_application_versions_get_request(
+        _request = build_gallery_application_versions_get_request(
             resource_group_name=resource_group_name,
             gallery_name=gallery_name,
             gallery_application_name=gallery_application_name,
@@ -5232,16 +4827,14 @@ class GalleryApplicationVersionsOperations:
             subscription_id=self._config.subscription_id,
             expand=expand,
             api_version=api_version,
-            template_url=self.get.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
         _stream = False
         pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
@@ -5250,26 +4843,22 @@ class GalleryApplicationVersionsOperations:
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
-        deserialized = self._deserialize("GalleryApplicationVersion", pipeline_response)
+        deserialized = self._deserialize("GalleryApplicationVersion", pipeline_response.http_response)
 
         if cls:
-            return cls(pipeline_response, deserialized, {})
+            return cls(pipeline_response, deserialized, {})  # type: ignore
 
-        return deserialized
+        return deserialized  # type: ignore
 
-    get.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/galleries/{galleryName}/applications/{galleryApplicationName}/versions/{galleryApplicationVersionName}"
-    }
-
-    def _delete_initial(  # pylint: disable=inconsistent-return-statements
+    def _delete_initial(
         self,
         resource_group_name: str,
         gallery_name: str,
         gallery_application_name: str,
         gallery_application_version_name: str,
         **kwargs: Any
-    ) -> None:
-        error_map = {
+    ) -> Iterator[bytes]:
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -5281,39 +4870,45 @@ class GalleryApplicationVersionsOperations:
         _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
 
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2022-01-03"))
-        cls: ClsType[None] = kwargs.pop("cls", None)
+        cls: ClsType[Iterator[bytes]] = kwargs.pop("cls", None)
 
-        request = build_gallery_application_versions_delete_request(
+        _request = build_gallery_application_versions_delete_request(
             resource_group_name=resource_group_name,
             gallery_name=gallery_name,
             gallery_application_name=gallery_application_name,
             gallery_application_version_name=gallery_application_version_name,
             subscription_id=self._config.subscription_id,
             api_version=api_version,
-            template_url=self._delete_initial.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
-        _stream = False
+        _stream = True
         pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
 
         if response.status_code not in [200, 202, 204]:
+            response.read()  # Load the body in memory and close the socket
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
-        if cls:
-            return cls(pipeline_response, None, {})
+        if response.status_code == 200:
+            deserialized = response.stream_download(self._client._pipeline)
 
-    _delete_initial.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/galleries/{galleryName}/applications/{galleryApplicationName}/versions/{galleryApplicationVersionName}"
-    }
+        if response.status_code == 202:
+            deserialized = response.stream_download(self._client._pipeline)
+
+        if response.status_code == 204:
+            deserialized = response.stream_download(self._client._pipeline)
+
+        if cls:
+            return cls(pipeline_response, deserialized, {})  # type: ignore
+
+        return deserialized  # type: ignore
 
     @distributed_trace
     def begin_delete(
@@ -5337,14 +4932,6 @@ class GalleryApplicationVersionsOperations:
         :param gallery_application_version_name: The name of the gallery Application Version to be
          deleted. Required.
         :type gallery_application_version_name: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be ARMPolling. Pass in False for this
-         operation to not poll, or pass in your own initialized polling object for a personal polling
-         strategy.
-        :paramtype polling: bool or ~azure.core.polling.PollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of LROPoller that returns either None or the result of cls(response)
         :rtype: ~azure.core.polling.LROPoller[None]
         :raises ~azure.core.exceptions.HttpResponseError:
@@ -5358,7 +4945,7 @@ class GalleryApplicationVersionsOperations:
         lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
         cont_token: Optional[str] = kwargs.pop("continuation_token", None)
         if cont_token is None:
-            raw_result = self._delete_initial(  # type: ignore
+            raw_result = self._delete_initial(
                 resource_group_name=resource_group_name,
                 gallery_name=gallery_name,
                 gallery_application_name=gallery_application_name,
@@ -5369,11 +4956,12 @@ class GalleryApplicationVersionsOperations:
                 params=_params,
                 **kwargs
             )
+            raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):  # pylint: disable=inconsistent-return-statements
             if cls:
-                return cls(pipeline_response, None, {})
+                return cls(pipeline_response, None, {})  # type: ignore
 
         if polling is True:
             polling_method: PollingMethod = cast(PollingMethod, ARMPolling(lro_delay, **kwargs))
@@ -5382,17 +4970,13 @@ class GalleryApplicationVersionsOperations:
         else:
             polling_method = polling
         if cont_token:
-            return LROPoller.from_continuation_token(
+            return LROPoller[None].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return LROPoller(self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
-
-    begin_delete.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/galleries/{galleryName}/applications/{galleryApplicationName}/versions/{galleryApplicationVersionName}"
-    }
+        return LROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
 
     @distributed_trace
     def list_by_gallery_application(
@@ -5408,7 +4992,6 @@ class GalleryApplicationVersionsOperations:
         :param gallery_application_name: The name of the Shared Application Gallery Application
          Definition from which the Application Versions are to be listed. Required.
         :type gallery_application_name: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: An iterator like instance of either GalleryApplicationVersion or the result of
          cls(response)
         :rtype:
@@ -5421,7 +5004,7 @@ class GalleryApplicationVersionsOperations:
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2022-01-03"))
         cls: ClsType[_models.GalleryApplicationVersionList] = kwargs.pop("cls", None)
 
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -5432,18 +5015,16 @@ class GalleryApplicationVersionsOperations:
         def prepare_request(next_link=None):
             if not next_link:
 
-                request = build_gallery_application_versions_list_by_gallery_application_request(
+                _request = build_gallery_application_versions_list_by_gallery_application_request(
                     resource_group_name=resource_group_name,
                     gallery_name=gallery_name,
                     gallery_application_name=gallery_application_name,
                     subscription_id=self._config.subscription_id,
                     api_version=api_version,
-                    template_url=self.list_by_gallery_application.metadata["url"],
                     headers=_headers,
                     params=_params,
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
+                _request.url = self._client.format_url(_request.url)
 
             else:
                 # make call to next link with the client's api-version
@@ -5454,14 +5035,13 @@ class GalleryApplicationVersionsOperations:
                         for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
                     }
                 )
-                _next_request_params["api-version"] = self._config.api_version
-                request = HttpRequest(
+                _next_request_params["api-version"] = self._api_version
+                _request = HttpRequest(
                     "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
-                request.method = "GET"
-            return request
+                _request.url = self._client.format_url(_request.url)
+                _request.method = "GET"
+            return _request
 
         def extract_data(pipeline_response):
             deserialized = self._deserialize("GalleryApplicationVersionList", pipeline_response)
@@ -5471,11 +5051,11 @@ class GalleryApplicationVersionsOperations:
             return deserialized.next_link or None, iter(list_of_elem)
 
         def get_next(next_link=None):
-            request = prepare_request(next_link)
+            _request = prepare_request(next_link)
 
             _stream = False
             pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
-                request, stream=_stream, **kwargs
+                _request, stream=_stream, **kwargs
             )
             response = pipeline_response.http_response
 
@@ -5486,10 +5066,6 @@ class GalleryApplicationVersionsOperations:
             return pipeline_response
 
         return ItemPaged(get_next, extract_data)
-
-    list_by_gallery_application.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/galleries/{galleryName}/applications/{galleryApplicationName}/versions"
-    }
 
 
 class GallerySharingProfileOperations:
@@ -5516,10 +5092,10 @@ class GallerySharingProfileOperations:
         self,
         resource_group_name: str,
         gallery_name: str,
-        sharing_update: Union[_models.SharingUpdate, IO],
+        sharing_update: Union[_models.SharingUpdate, IO[bytes]],
         **kwargs: Any
-    ) -> _models.SharingUpdate:
-        error_map = {
+    ) -> Iterator[bytes]:
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -5532,7 +5108,7 @@ class GallerySharingProfileOperations:
 
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2022-01-03"))
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-        cls: ClsType[_models.SharingUpdate] = kwargs.pop("cls", None)
+        cls: ClsType[Iterator[bytes]] = kwargs.pop("cls", None)
 
         content_type = content_type or "application/json"
         _json = None
@@ -5542,7 +5118,7 @@ class GallerySharingProfileOperations:
         else:
             _json = self._serialize.body(sharing_update, "SharingUpdate")
 
-        request = build_gallery_sharing_profile_update_request(
+        _request = build_gallery_sharing_profile_update_request(
             resource_group_name=resource_group_name,
             gallery_name=gallery_name,
             subscription_id=self._config.subscription_id,
@@ -5550,38 +5126,33 @@ class GallerySharingProfileOperations:
             content_type=content_type,
             json=_json,
             content=_content,
-            template_url=self._update_initial.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
-        _stream = False
+        _stream = True
         pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
 
         if response.status_code not in [200, 202]:
+            response.read()  # Load the body in memory and close the socket
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
         if response.status_code == 200:
-            deserialized = self._deserialize("SharingUpdate", pipeline_response)
+            deserialized = response.stream_download(self._client._pipeline)
 
         if response.status_code == 202:
-            deserialized = self._deserialize("SharingUpdate", pipeline_response)
+            deserialized = response.stream_download(self._client._pipeline)
 
         if cls:
             return cls(pipeline_response, deserialized, {})  # type: ignore
 
         return deserialized  # type: ignore
-
-    _update_initial.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/galleries/{galleryName}/share"
-    }
 
     @overload
     def begin_update(
@@ -5604,14 +5175,6 @@ class GallerySharingProfileOperations:
         :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be ARMPolling. Pass in False for this
-         operation to not poll, or pass in your own initialized polling object for a personal polling
-         strategy.
-        :paramtype polling: bool or ~azure.core.polling.PollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of LROPoller that returns either SharingUpdate or the result of
          cls(response)
         :rtype: ~azure.core.polling.LROPoller[~azure.mgmt.compute.v2022_01_03.models.SharingUpdate]
@@ -5623,7 +5186,7 @@ class GallerySharingProfileOperations:
         self,
         resource_group_name: str,
         gallery_name: str,
-        sharing_update: IO,
+        sharing_update: IO[bytes],
         *,
         content_type: str = "application/json",
         **kwargs: Any
@@ -5635,18 +5198,10 @@ class GallerySharingProfileOperations:
         :param gallery_name: The name of the Shared Image Gallery. Required.
         :type gallery_name: str
         :param sharing_update: Parameters supplied to the update gallery sharing profile. Required.
-        :type sharing_update: IO
+        :type sharing_update: IO[bytes]
         :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be ARMPolling. Pass in False for this
-         operation to not poll, or pass in your own initialized polling object for a personal polling
-         strategy.
-        :paramtype polling: bool or ~azure.core.polling.PollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of LROPoller that returns either SharingUpdate or the result of
          cls(response)
         :rtype: ~azure.core.polling.LROPoller[~azure.mgmt.compute.v2022_01_03.models.SharingUpdate]
@@ -5658,7 +5213,7 @@ class GallerySharingProfileOperations:
         self,
         resource_group_name: str,
         gallery_name: str,
-        sharing_update: Union[_models.SharingUpdate, IO],
+        sharing_update: Union[_models.SharingUpdate, IO[bytes]],
         **kwargs: Any
     ) -> LROPoller[_models.SharingUpdate]:
         """Update sharing profile of a gallery.
@@ -5668,19 +5223,8 @@ class GallerySharingProfileOperations:
         :param gallery_name: The name of the Shared Image Gallery. Required.
         :type gallery_name: str
         :param sharing_update: Parameters supplied to the update gallery sharing profile. Is either a
-         SharingUpdate type or a IO type. Required.
-        :type sharing_update: ~azure.mgmt.compute.v2022_01_03.models.SharingUpdate or IO
-        :keyword content_type: Body Parameter content-type. Known values are: 'application/json'.
-         Default value is None.
-        :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be ARMPolling. Pass in False for this
-         operation to not poll, or pass in your own initialized polling object for a personal polling
-         strategy.
-        :paramtype polling: bool or ~azure.core.polling.PollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
+         SharingUpdate type or a IO[bytes] type. Required.
+        :type sharing_update: ~azure.mgmt.compute.v2022_01_03.models.SharingUpdate or IO[bytes]
         :return: An instance of LROPoller that returns either SharingUpdate or the result of
          cls(response)
         :rtype: ~azure.core.polling.LROPoller[~azure.mgmt.compute.v2022_01_03.models.SharingUpdate]
@@ -5707,12 +5251,13 @@ class GallerySharingProfileOperations:
                 params=_params,
                 **kwargs
             )
+            raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):
-            deserialized = self._deserialize("SharingUpdate", pipeline_response)
+            deserialized = self._deserialize("SharingUpdate", pipeline_response.http_response)
             if cls:
-                return cls(pipeline_response, deserialized, {})
+                return cls(pipeline_response, deserialized, {})  # type: ignore
             return deserialized
 
         if polling is True:
@@ -5722,17 +5267,15 @@ class GallerySharingProfileOperations:
         else:
             polling_method = polling
         if cont_token:
-            return LROPoller.from_continuation_token(
+            return LROPoller[_models.SharingUpdate].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return LROPoller(self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
-
-    begin_update.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/galleries/{galleryName}/share"
-    }
+        return LROPoller[_models.SharingUpdate](
+            self._client, raw_result, get_long_running_output, polling_method  # type: ignore
+        )
 
 
 class SharedGalleriesOperations:
@@ -5766,7 +5309,6 @@ class SharedGalleriesOperations:
         :keyword shared_to: The query parameter to decide what shared galleries to fetch when doing
          listing operations. "tenant" Default value is None.
         :paramtype shared_to: str or ~azure.mgmt.compute.v2022_01_03.models.SharedToValues
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: An iterator like instance of either SharedGallery or the result of cls(response)
         :rtype: ~azure.core.paging.ItemPaged[~azure.mgmt.compute.v2022_01_03.models.SharedGallery]
         :raises ~azure.core.exceptions.HttpResponseError:
@@ -5777,7 +5319,7 @@ class SharedGalleriesOperations:
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2022-01-03"))
         cls: ClsType[_models.SharedGalleryList] = kwargs.pop("cls", None)
 
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -5788,17 +5330,15 @@ class SharedGalleriesOperations:
         def prepare_request(next_link=None):
             if not next_link:
 
-                request = build_shared_galleries_list_request(
+                _request = build_shared_galleries_list_request(
                     location=location,
                     subscription_id=self._config.subscription_id,
                     shared_to=shared_to,
                     api_version=api_version,
-                    template_url=self.list.metadata["url"],
                     headers=_headers,
                     params=_params,
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
+                _request.url = self._client.format_url(_request.url)
 
             else:
                 # make call to next link with the client's api-version
@@ -5809,14 +5349,13 @@ class SharedGalleriesOperations:
                         for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
                     }
                 )
-                _next_request_params["api-version"] = self._config.api_version
-                request = HttpRequest(
+                _next_request_params["api-version"] = self._api_version
+                _request = HttpRequest(
                     "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
-                request.method = "GET"
-            return request
+                _request.url = self._client.format_url(_request.url)
+                _request.method = "GET"
+            return _request
 
         def extract_data(pipeline_response):
             deserialized = self._deserialize("SharedGalleryList", pipeline_response)
@@ -5826,11 +5365,11 @@ class SharedGalleriesOperations:
             return deserialized.next_link or None, iter(list_of_elem)
 
         def get_next(next_link=None):
-            request = prepare_request(next_link)
+            _request = prepare_request(next_link)
 
             _stream = False
             pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
-                request, stream=_stream, **kwargs
+                _request, stream=_stream, **kwargs
             )
             response = pipeline_response.http_response
 
@@ -5842,10 +5381,6 @@ class SharedGalleriesOperations:
 
         return ItemPaged(get_next, extract_data)
 
-    list.metadata = {
-        "url": "/subscriptions/{subscriptionId}/providers/Microsoft.Compute/locations/{location}/sharedGalleries"
-    }
-
     @distributed_trace
     def get(self, location: str, gallery_unique_name: str, **kwargs: Any) -> _models.SharedGallery:
         """Get a shared gallery by subscription id or tenant id.
@@ -5854,12 +5389,11 @@ class SharedGalleriesOperations:
         :type location: str
         :param gallery_unique_name: The unique name of the Shared Gallery. Required.
         :type gallery_unique_name: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: SharedGallery or the result of cls(response)
         :rtype: ~azure.mgmt.compute.v2022_01_03.models.SharedGallery
         :raises ~azure.core.exceptions.HttpResponseError:
         """
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -5873,21 +5407,19 @@ class SharedGalleriesOperations:
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2022-01-03"))
         cls: ClsType[_models.SharedGallery] = kwargs.pop("cls", None)
 
-        request = build_shared_galleries_get_request(
+        _request = build_shared_galleries_get_request(
             location=location,
             gallery_unique_name=gallery_unique_name,
             subscription_id=self._config.subscription_id,
             api_version=api_version,
-            template_url=self.get.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
         _stream = False
         pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
@@ -5896,16 +5428,12 @@ class SharedGalleriesOperations:
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
-        deserialized = self._deserialize("SharedGallery", pipeline_response)
+        deserialized = self._deserialize("SharedGallery", pipeline_response.http_response)
 
         if cls:
-            return cls(pipeline_response, deserialized, {})
+            return cls(pipeline_response, deserialized, {})  # type: ignore
 
-        return deserialized
-
-    get.metadata = {
-        "url": "/subscriptions/{subscriptionId}/providers/Microsoft.Compute/locations/{location}/sharedGalleries/{galleryUniqueName}"
-    }
+        return deserialized  # type: ignore
 
 
 class SharedGalleryImagesOperations:
@@ -5946,7 +5474,6 @@ class SharedGalleryImagesOperations:
         :keyword shared_to: The query parameter to decide what shared galleries to fetch when doing
          listing operations. "tenant" Default value is None.
         :paramtype shared_to: str or ~azure.mgmt.compute.v2022_01_03.models.SharedToValues
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: An iterator like instance of either SharedGalleryImage or the result of cls(response)
         :rtype: ~azure.core.paging.ItemPaged[~azure.mgmt.compute.v2022_01_03.models.SharedGalleryImage]
         :raises ~azure.core.exceptions.HttpResponseError:
@@ -5957,7 +5484,7 @@ class SharedGalleryImagesOperations:
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2022-01-03"))
         cls: ClsType[_models.SharedGalleryImageList] = kwargs.pop("cls", None)
 
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -5968,18 +5495,16 @@ class SharedGalleryImagesOperations:
         def prepare_request(next_link=None):
             if not next_link:
 
-                request = build_shared_gallery_images_list_request(
+                _request = build_shared_gallery_images_list_request(
                     location=location,
                     gallery_unique_name=gallery_unique_name,
                     subscription_id=self._config.subscription_id,
                     shared_to=shared_to,
                     api_version=api_version,
-                    template_url=self.list.metadata["url"],
                     headers=_headers,
                     params=_params,
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
+                _request.url = self._client.format_url(_request.url)
 
             else:
                 # make call to next link with the client's api-version
@@ -5990,14 +5515,13 @@ class SharedGalleryImagesOperations:
                         for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
                     }
                 )
-                _next_request_params["api-version"] = self._config.api_version
-                request = HttpRequest(
+                _next_request_params["api-version"] = self._api_version
+                _request = HttpRequest(
                     "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
-                request.method = "GET"
-            return request
+                _request.url = self._client.format_url(_request.url)
+                _request.method = "GET"
+            return _request
 
         def extract_data(pipeline_response):
             deserialized = self._deserialize("SharedGalleryImageList", pipeline_response)
@@ -6007,11 +5531,11 @@ class SharedGalleryImagesOperations:
             return deserialized.next_link or None, iter(list_of_elem)
 
         def get_next(next_link=None):
-            request = prepare_request(next_link)
+            _request = prepare_request(next_link)
 
             _stream = False
             pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
-                request, stream=_stream, **kwargs
+                _request, stream=_stream, **kwargs
             )
             response = pipeline_response.http_response
 
@@ -6022,10 +5546,6 @@ class SharedGalleryImagesOperations:
             return pipeline_response
 
         return ItemPaged(get_next, extract_data)
-
-    list.metadata = {
-        "url": "/subscriptions/{subscriptionId}/providers/Microsoft.Compute/locations/{location}/sharedGalleries/{galleryUniqueName}/images"
-    }
 
     @distributed_trace
     def get(
@@ -6040,12 +5560,11 @@ class SharedGalleryImagesOperations:
         :param gallery_image_name: The name of the Shared Gallery Image Definition from which the Image
          Versions are to be listed. Required.
         :type gallery_image_name: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: SharedGalleryImage or the result of cls(response)
         :rtype: ~azure.mgmt.compute.v2022_01_03.models.SharedGalleryImage
         :raises ~azure.core.exceptions.HttpResponseError:
         """
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -6059,22 +5578,20 @@ class SharedGalleryImagesOperations:
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2022-01-03"))
         cls: ClsType[_models.SharedGalleryImage] = kwargs.pop("cls", None)
 
-        request = build_shared_gallery_images_get_request(
+        _request = build_shared_gallery_images_get_request(
             location=location,
             gallery_unique_name=gallery_unique_name,
             gallery_image_name=gallery_image_name,
             subscription_id=self._config.subscription_id,
             api_version=api_version,
-            template_url=self.get.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
         _stream = False
         pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
@@ -6083,16 +5600,12 @@ class SharedGalleryImagesOperations:
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
-        deserialized = self._deserialize("SharedGalleryImage", pipeline_response)
+        deserialized = self._deserialize("SharedGalleryImage", pipeline_response.http_response)
 
         if cls:
-            return cls(pipeline_response, deserialized, {})
+            return cls(pipeline_response, deserialized, {})  # type: ignore
 
-        return deserialized
-
-    get.metadata = {
-        "url": "/subscriptions/{subscriptionId}/providers/Microsoft.Compute/locations/{location}/sharedGalleries/{galleryUniqueName}/images/{galleryImageName}"
-    }
+        return deserialized  # type: ignore
 
 
 class SharedGalleryImageVersionsOperations:
@@ -6137,7 +5650,6 @@ class SharedGalleryImageVersionsOperations:
         :keyword shared_to: The query parameter to decide what shared galleries to fetch when doing
          listing operations. "tenant" Default value is None.
         :paramtype shared_to: str or ~azure.mgmt.compute.v2022_01_03.models.SharedToValues
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: An iterator like instance of either SharedGalleryImageVersion or the result of
          cls(response)
         :rtype:
@@ -6150,7 +5662,7 @@ class SharedGalleryImageVersionsOperations:
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2022-01-03"))
         cls: ClsType[_models.SharedGalleryImageVersionList] = kwargs.pop("cls", None)
 
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -6161,19 +5673,17 @@ class SharedGalleryImageVersionsOperations:
         def prepare_request(next_link=None):
             if not next_link:
 
-                request = build_shared_gallery_image_versions_list_request(
+                _request = build_shared_gallery_image_versions_list_request(
                     location=location,
                     gallery_unique_name=gallery_unique_name,
                     gallery_image_name=gallery_image_name,
                     subscription_id=self._config.subscription_id,
                     shared_to=shared_to,
                     api_version=api_version,
-                    template_url=self.list.metadata["url"],
                     headers=_headers,
                     params=_params,
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
+                _request.url = self._client.format_url(_request.url)
 
             else:
                 # make call to next link with the client's api-version
@@ -6184,14 +5694,13 @@ class SharedGalleryImageVersionsOperations:
                         for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
                     }
                 )
-                _next_request_params["api-version"] = self._config.api_version
-                request = HttpRequest(
+                _next_request_params["api-version"] = self._api_version
+                _request = HttpRequest(
                     "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
-                request.method = "GET"
-            return request
+                _request.url = self._client.format_url(_request.url)
+                _request.method = "GET"
+            return _request
 
         def extract_data(pipeline_response):
             deserialized = self._deserialize("SharedGalleryImageVersionList", pipeline_response)
@@ -6201,11 +5710,11 @@ class SharedGalleryImageVersionsOperations:
             return deserialized.next_link or None, iter(list_of_elem)
 
         def get_next(next_link=None):
-            request = prepare_request(next_link)
+            _request = prepare_request(next_link)
 
             _stream = False
             pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
-                request, stream=_stream, **kwargs
+                _request, stream=_stream, **kwargs
             )
             response = pipeline_response.http_response
 
@@ -6216,10 +5725,6 @@ class SharedGalleryImageVersionsOperations:
             return pipeline_response
 
         return ItemPaged(get_next, extract_data)
-
-    list.metadata = {
-        "url": "/subscriptions/{subscriptionId}/providers/Microsoft.Compute/locations/{location}/sharedGalleries/{galleryUniqueName}/images/{galleryImageName}/versions"
-    }
 
     @distributed_trace
     def get(
@@ -6244,12 +5749,11 @@ class SharedGalleryImageVersionsOperations:
          must be within the range of a 32-bit integer. Format:
          :code:`<MajorVersion>`.:code:`<MinorVersion>`.:code:`<Patch>`. Required.
         :type gallery_image_version_name: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: SharedGalleryImageVersion or the result of cls(response)
         :rtype: ~azure.mgmt.compute.v2022_01_03.models.SharedGalleryImageVersion
         :raises ~azure.core.exceptions.HttpResponseError:
         """
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -6263,23 +5767,21 @@ class SharedGalleryImageVersionsOperations:
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2022-01-03"))
         cls: ClsType[_models.SharedGalleryImageVersion] = kwargs.pop("cls", None)
 
-        request = build_shared_gallery_image_versions_get_request(
+        _request = build_shared_gallery_image_versions_get_request(
             location=location,
             gallery_unique_name=gallery_unique_name,
             gallery_image_name=gallery_image_name,
             gallery_image_version_name=gallery_image_version_name,
             subscription_id=self._config.subscription_id,
             api_version=api_version,
-            template_url=self.get.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
         _stream = False
         pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
@@ -6288,16 +5790,12 @@ class SharedGalleryImageVersionsOperations:
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
-        deserialized = self._deserialize("SharedGalleryImageVersion", pipeline_response)
+        deserialized = self._deserialize("SharedGalleryImageVersion", pipeline_response.http_response)
 
         if cls:
-            return cls(pipeline_response, deserialized, {})
+            return cls(pipeline_response, deserialized, {})  # type: ignore
 
-        return deserialized
-
-    get.metadata = {
-        "url": "/subscriptions/{subscriptionId}/providers/Microsoft.Compute/locations/{location}/sharedGalleries/{galleryUniqueName}/images/{galleryImageName}/versions/{galleryImageVersionName}"
-    }
+        return deserialized  # type: ignore
 
 
 class CommunityGalleriesOperations:
@@ -6328,12 +5826,11 @@ class CommunityGalleriesOperations:
         :type location: str
         :param public_gallery_name: The public name of the community gallery. Required.
         :type public_gallery_name: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: CommunityGallery or the result of cls(response)
         :rtype: ~azure.mgmt.compute.v2022_01_03.models.CommunityGallery
         :raises ~azure.core.exceptions.HttpResponseError:
         """
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -6347,21 +5844,19 @@ class CommunityGalleriesOperations:
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2022-01-03"))
         cls: ClsType[_models.CommunityGallery] = kwargs.pop("cls", None)
 
-        request = build_community_galleries_get_request(
+        _request = build_community_galleries_get_request(
             location=location,
             public_gallery_name=public_gallery_name,
             subscription_id=self._config.subscription_id,
             api_version=api_version,
-            template_url=self.get.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
         _stream = False
         pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
@@ -6370,16 +5865,12 @@ class CommunityGalleriesOperations:
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
-        deserialized = self._deserialize("CommunityGallery", pipeline_response)
+        deserialized = self._deserialize("CommunityGallery", pipeline_response.http_response)
 
         if cls:
-            return cls(pipeline_response, deserialized, {})
+            return cls(pipeline_response, deserialized, {})  # type: ignore
 
-        return deserialized
-
-    get.metadata = {
-        "url": "/subscriptions/{subscriptionId}/providers/Microsoft.Compute/locations/{location}/communityGalleries/{publicGalleryName}"
-    }
+        return deserialized  # type: ignore
 
 
 class CommunityGalleryImagesOperations:
@@ -6414,12 +5905,11 @@ class CommunityGalleryImagesOperations:
         :type public_gallery_name: str
         :param gallery_image_name: The name of the community gallery image definition. Required.
         :type gallery_image_name: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: CommunityGalleryImage or the result of cls(response)
         :rtype: ~azure.mgmt.compute.v2022_01_03.models.CommunityGalleryImage
         :raises ~azure.core.exceptions.HttpResponseError:
         """
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -6433,22 +5923,20 @@ class CommunityGalleryImagesOperations:
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2022-01-03"))
         cls: ClsType[_models.CommunityGalleryImage] = kwargs.pop("cls", None)
 
-        request = build_community_gallery_images_get_request(
+        _request = build_community_gallery_images_get_request(
             location=location,
             public_gallery_name=public_gallery_name,
             gallery_image_name=gallery_image_name,
             subscription_id=self._config.subscription_id,
             api_version=api_version,
-            template_url=self.get.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
         _stream = False
         pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
@@ -6457,16 +5945,12 @@ class CommunityGalleryImagesOperations:
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
-        deserialized = self._deserialize("CommunityGalleryImage", pipeline_response)
+        deserialized = self._deserialize("CommunityGalleryImage", pipeline_response.http_response)
 
         if cls:
-            return cls(pipeline_response, deserialized, {})
+            return cls(pipeline_response, deserialized, {})  # type: ignore
 
-        return deserialized
-
-    get.metadata = {
-        "url": "/subscriptions/{subscriptionId}/providers/Microsoft.Compute/locations/{location}/communityGalleries/{publicGalleryName}/images/{galleryImageName}"
-    }
+        return deserialized  # type: ignore
 
     @distributed_trace
     def list(self, location: str, public_gallery_name: str, **kwargs: Any) -> Iterable["_models.CommunityGalleryImage"]:
@@ -6476,7 +5960,6 @@ class CommunityGalleryImagesOperations:
         :type location: str
         :param public_gallery_name: The public name of the community gallery. Required.
         :type public_gallery_name: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: An iterator like instance of either CommunityGalleryImage or the result of
          cls(response)
         :rtype:
@@ -6489,7 +5972,7 @@ class CommunityGalleryImagesOperations:
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2022-01-03"))
         cls: ClsType[_models.CommunityGalleryImageList] = kwargs.pop("cls", None)
 
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -6500,17 +5983,15 @@ class CommunityGalleryImagesOperations:
         def prepare_request(next_link=None):
             if not next_link:
 
-                request = build_community_gallery_images_list_request(
+                _request = build_community_gallery_images_list_request(
                     location=location,
                     public_gallery_name=public_gallery_name,
                     subscription_id=self._config.subscription_id,
                     api_version=api_version,
-                    template_url=self.list.metadata["url"],
                     headers=_headers,
                     params=_params,
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
+                _request.url = self._client.format_url(_request.url)
 
             else:
                 # make call to next link with the client's api-version
@@ -6521,14 +6002,13 @@ class CommunityGalleryImagesOperations:
                         for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
                     }
                 )
-                _next_request_params["api-version"] = self._config.api_version
-                request = HttpRequest(
+                _next_request_params["api-version"] = self._api_version
+                _request = HttpRequest(
                     "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
-                request.method = "GET"
-            return request
+                _request.url = self._client.format_url(_request.url)
+                _request.method = "GET"
+            return _request
 
         def extract_data(pipeline_response):
             deserialized = self._deserialize("CommunityGalleryImageList", pipeline_response)
@@ -6538,11 +6018,11 @@ class CommunityGalleryImagesOperations:
             return deserialized.next_link or None, iter(list_of_elem)
 
         def get_next(next_link=None):
-            request = prepare_request(next_link)
+            _request = prepare_request(next_link)
 
             _stream = False
             pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
-                request, stream=_stream, **kwargs
+                _request, stream=_stream, **kwargs
             )
             response = pipeline_response.http_response
 
@@ -6553,10 +6033,6 @@ class CommunityGalleryImagesOperations:
             return pipeline_response
 
         return ItemPaged(get_next, extract_data)
-
-    list.metadata = {
-        "url": "/subscriptions/{subscriptionId}/providers/Microsoft.Compute/locations/{location}/communityGalleries/{publicGalleryName}/images"
-    }
 
 
 class CommunityGalleryImageVersionsOperations:
@@ -6601,12 +6077,11 @@ class CommunityGalleryImageVersionsOperations:
          be within the range of a 32-bit integer. Format:
          :code:`<MajorVersion>`.:code:`<MinorVersion>`.:code:`<Patch>`. Required.
         :type gallery_image_version_name: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: CommunityGalleryImageVersion or the result of cls(response)
         :rtype: ~azure.mgmt.compute.v2022_01_03.models.CommunityGalleryImageVersion
         :raises ~azure.core.exceptions.HttpResponseError:
         """
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -6620,23 +6095,21 @@ class CommunityGalleryImageVersionsOperations:
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2022-01-03"))
         cls: ClsType[_models.CommunityGalleryImageVersion] = kwargs.pop("cls", None)
 
-        request = build_community_gallery_image_versions_get_request(
+        _request = build_community_gallery_image_versions_get_request(
             location=location,
             public_gallery_name=public_gallery_name,
             gallery_image_name=gallery_image_name,
             gallery_image_version_name=gallery_image_version_name,
             subscription_id=self._config.subscription_id,
             api_version=api_version,
-            template_url=self.get.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
         _stream = False
         pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
@@ -6645,16 +6118,12 @@ class CommunityGalleryImageVersionsOperations:
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
-        deserialized = self._deserialize("CommunityGalleryImageVersion", pipeline_response)
+        deserialized = self._deserialize("CommunityGalleryImageVersion", pipeline_response.http_response)
 
         if cls:
-            return cls(pipeline_response, deserialized, {})
+            return cls(pipeline_response, deserialized, {})  # type: ignore
 
-        return deserialized
-
-    get.metadata = {
-        "url": "/subscriptions/{subscriptionId}/providers/Microsoft.Compute/locations/{location}/communityGalleries/{publicGalleryName}/images/{galleryImageName}/versions/{galleryImageVersionName}"
-    }
+        return deserialized  # type: ignore
 
     @distributed_trace
     def list(
@@ -6668,7 +6137,6 @@ class CommunityGalleryImageVersionsOperations:
         :type public_gallery_name: str
         :param gallery_image_name: The name of the community gallery image definition. Required.
         :type gallery_image_name: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: An iterator like instance of either CommunityGalleryImageVersion or the result of
          cls(response)
         :rtype:
@@ -6681,7 +6149,7 @@ class CommunityGalleryImageVersionsOperations:
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2022-01-03"))
         cls: ClsType[_models.CommunityGalleryImageVersionList] = kwargs.pop("cls", None)
 
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -6692,18 +6160,16 @@ class CommunityGalleryImageVersionsOperations:
         def prepare_request(next_link=None):
             if not next_link:
 
-                request = build_community_gallery_image_versions_list_request(
+                _request = build_community_gallery_image_versions_list_request(
                     location=location,
                     public_gallery_name=public_gallery_name,
                     gallery_image_name=gallery_image_name,
                     subscription_id=self._config.subscription_id,
                     api_version=api_version,
-                    template_url=self.list.metadata["url"],
                     headers=_headers,
                     params=_params,
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
+                _request.url = self._client.format_url(_request.url)
 
             else:
                 # make call to next link with the client's api-version
@@ -6714,14 +6180,13 @@ class CommunityGalleryImageVersionsOperations:
                         for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
                     }
                 )
-                _next_request_params["api-version"] = self._config.api_version
-                request = HttpRequest(
+                _next_request_params["api-version"] = self._api_version
+                _request = HttpRequest(
                     "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
-                request.method = "GET"
-            return request
+                _request.url = self._client.format_url(_request.url)
+                _request.method = "GET"
+            return _request
 
         def extract_data(pipeline_response):
             deserialized = self._deserialize("CommunityGalleryImageVersionList", pipeline_response)
@@ -6731,11 +6196,11 @@ class CommunityGalleryImageVersionsOperations:
             return deserialized.next_link or None, iter(list_of_elem)
 
         def get_next(next_link=None):
-            request = prepare_request(next_link)
+            _request = prepare_request(next_link)
 
             _stream = False
             pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
-                request, stream=_stream, **kwargs
+                _request, stream=_stream, **kwargs
             )
             response = pipeline_response.http_response
 
@@ -6746,7 +6211,3 @@ class CommunityGalleryImageVersionsOperations:
             return pipeline_response
 
         return ItemPaged(get_next, extract_data)
-
-    list.metadata = {
-        "url": "/subscriptions/{subscriptionId}/providers/Microsoft.Compute/locations/{location}/communityGalleries/{publicGalleryName}/images/{galleryImageName}/versions"
-    }

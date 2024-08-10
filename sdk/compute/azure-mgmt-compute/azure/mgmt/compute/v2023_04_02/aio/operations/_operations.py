@@ -1,4 +1,4 @@
-# pylint: disable=too-many-lines
+# pylint: disable=too-many-lines,too-many-statements
 # coding=utf-8
 # --------------------------------------------------------------------------
 # Copyright (c) Microsoft Corporation. All rights reserved.
@@ -7,7 +7,8 @@
 # Changes may cause incorrect behavior and will be lost if the code is regenerated.
 # --------------------------------------------------------------------------
 from io import IOBase
-from typing import Any, AsyncIterable, Callable, Dict, IO, Optional, TypeVar, Union, cast, overload
+import sys
+from typing import Any, AsyncIterable, AsyncIterator, Callable, Dict, IO, Optional, Type, TypeVar, Union, cast, overload
 import urllib.parse
 
 from azure.core.async_paging import AsyncItemPaged, AsyncList
@@ -20,9 +21,8 @@ from azure.core.exceptions import (
     map_error,
 )
 from azure.core.pipeline import PipelineResponse
-from azure.core.pipeline.transport import AsyncHttpResponse
 from azure.core.polling import AsyncLROPoller, AsyncNoPolling, AsyncPollingMethod
-from azure.core.rest import HttpRequest
+from azure.core.rest import AsyncHttpResponse, HttpRequest
 from azure.core.tracing.decorator import distributed_trace
 from azure.core.tracing.decorator_async import distributed_trace_async
 from azure.core.utils import case_insensitive_dict
@@ -30,7 +30,6 @@ from azure.mgmt.core.exceptions import ARMErrorFormat
 from azure.mgmt.core.polling.async_arm_polling import AsyncARMPolling
 
 from ... import models as _models
-from ..._vendor import _convert_request
 from ...operations._operations import (
     build_disk_accesses_create_or_update_request,
     build_disk_accesses_delete_a_private_endpoint_connection_request,
@@ -72,6 +71,10 @@ from ...operations._operations import (
     build_snapshots_update_request,
 )
 
+if sys.version_info >= (3, 9):
+    from collections.abc import MutableMapping
+else:
+    from typing import MutableMapping  # type: ignore  # pylint: disable=ungrouped-imports
 T = TypeVar("T")
 ClsType = Optional[Callable[[PipelineResponse[HttpRequest, AsyncHttpResponse], T, Dict[str, Any]], Any]]
 
@@ -97,9 +100,9 @@ class DisksOperations:
         self._api_version = input_args.pop(0) if input_args else kwargs.pop("api_version")
 
     async def _create_or_update_initial(
-        self, resource_group_name: str, disk_name: str, disk: Union[_models.Disk, IO], **kwargs: Any
-    ) -> _models.Disk:
-        error_map = {
+        self, resource_group_name: str, disk_name: str, disk: Union[_models.Disk, IO[bytes]], **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -112,7 +115,7 @@ class DisksOperations:
 
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2023-04-02"))
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-        cls: ClsType[_models.Disk] = kwargs.pop("cls", None)
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
 
         content_type = content_type or "application/json"
         _json = None
@@ -122,7 +125,7 @@ class DisksOperations:
         else:
             _json = self._serialize.body(disk, "Disk")
 
-        request = build_disks_create_or_update_request(
+        _request = build_disks_create_or_update_request(
             resource_group_name=resource_group_name,
             disk_name=disk_name,
             subscription_id=self._config.subscription_id,
@@ -130,38 +133,33 @@ class DisksOperations:
             content_type=content_type,
             json=_json,
             content=_content,
-            template_url=self._create_or_update_initial.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
-        _stream = False
+        _stream = True
         pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
 
         if response.status_code not in [200, 202]:
+            await response.read()  # Load the body in memory and close the socket
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
         if response.status_code == 200:
-            deserialized = self._deserialize("Disk", pipeline_response)
+            deserialized = response.stream_download(self._client._pipeline)
 
         if response.status_code == 202:
-            deserialized = self._deserialize("Disk", pipeline_response)
+            deserialized = response.stream_download(self._client._pipeline)
 
         if cls:
             return cls(pipeline_response, deserialized, {})  # type: ignore
 
         return deserialized  # type: ignore
-
-    _create_or_update_initial.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/disks/{diskName}"
-    }
 
     @overload
     async def begin_create_or_update(
@@ -186,14 +184,6 @@ class DisksOperations:
         :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of AsyncLROPoller that returns either Disk or the result of cls(response)
         :rtype: ~azure.core.polling.AsyncLROPoller[~azure.mgmt.compute.v2023_04_02.models.Disk]
         :raises ~azure.core.exceptions.HttpResponseError:
@@ -204,7 +194,7 @@ class DisksOperations:
         self,
         resource_group_name: str,
         disk_name: str,
-        disk: IO,
+        disk: IO[bytes],
         *,
         content_type: str = "application/json",
         **kwargs: Any
@@ -218,18 +208,10 @@ class DisksOperations:
          maximum name length is 80 characters. Required.
         :type disk_name: str
         :param disk: Disk object supplied in the body of the Put disk operation. Required.
-        :type disk: IO
+        :type disk: IO[bytes]
         :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of AsyncLROPoller that returns either Disk or the result of cls(response)
         :rtype: ~azure.core.polling.AsyncLROPoller[~azure.mgmt.compute.v2023_04_02.models.Disk]
         :raises ~azure.core.exceptions.HttpResponseError:
@@ -237,7 +219,7 @@ class DisksOperations:
 
     @distributed_trace_async
     async def begin_create_or_update(
-        self, resource_group_name: str, disk_name: str, disk: Union[_models.Disk, IO], **kwargs: Any
+        self, resource_group_name: str, disk_name: str, disk: Union[_models.Disk, IO[bytes]], **kwargs: Any
     ) -> AsyncLROPoller[_models.Disk]:
         """Creates or updates a disk.
 
@@ -248,19 +230,8 @@ class DisksOperations:
          maximum name length is 80 characters. Required.
         :type disk_name: str
         :param disk: Disk object supplied in the body of the Put disk operation. Is either a Disk type
-         or a IO type. Required.
-        :type disk: ~azure.mgmt.compute.v2023_04_02.models.Disk or IO
-        :keyword content_type: Body Parameter content-type. Known values are: 'application/json'.
-         Default value is None.
-        :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
+         or a IO[bytes] type. Required.
+        :type disk: ~azure.mgmt.compute.v2023_04_02.models.Disk or IO[bytes]
         :return: An instance of AsyncLROPoller that returns either Disk or the result of cls(response)
         :rtype: ~azure.core.polling.AsyncLROPoller[~azure.mgmt.compute.v2023_04_02.models.Disk]
         :raises ~azure.core.exceptions.HttpResponseError:
@@ -286,12 +257,13 @@ class DisksOperations:
                 params=_params,
                 **kwargs
             )
+            await raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):
-            deserialized = self._deserialize("Disk", pipeline_response)
+            deserialized = self._deserialize("Disk", pipeline_response.http_response)
             if cls:
-                return cls(pipeline_response, deserialized, {})
+                return cls(pipeline_response, deserialized, {})  # type: ignore
             return deserialized
 
         if polling is True:
@@ -301,22 +273,20 @@ class DisksOperations:
         else:
             polling_method = polling
         if cont_token:
-            return AsyncLROPoller.from_continuation_token(
+            return AsyncLROPoller[_models.Disk].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return AsyncLROPoller(self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
-
-    begin_create_or_update.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/disks/{diskName}"
-    }
+        return AsyncLROPoller[_models.Disk](
+            self._client, raw_result, get_long_running_output, polling_method  # type: ignore
+        )
 
     async def _update_initial(
-        self, resource_group_name: str, disk_name: str, disk: Union[_models.DiskUpdate, IO], **kwargs: Any
-    ) -> _models.Disk:
-        error_map = {
+        self, resource_group_name: str, disk_name: str, disk: Union[_models.DiskUpdate, IO[bytes]], **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -329,7 +299,7 @@ class DisksOperations:
 
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2023-04-02"))
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-        cls: ClsType[_models.Disk] = kwargs.pop("cls", None)
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
 
         content_type = content_type or "application/json"
         _json = None
@@ -339,7 +309,7 @@ class DisksOperations:
         else:
             _json = self._serialize.body(disk, "DiskUpdate")
 
-        request = build_disks_update_request(
+        _request = build_disks_update_request(
             resource_group_name=resource_group_name,
             disk_name=disk_name,
             subscription_id=self._config.subscription_id,
@@ -347,38 +317,33 @@ class DisksOperations:
             content_type=content_type,
             json=_json,
             content=_content,
-            template_url=self._update_initial.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
-        _stream = False
+        _stream = True
         pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
 
         if response.status_code not in [200, 202]:
+            await response.read()  # Load the body in memory and close the socket
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
         if response.status_code == 200:
-            deserialized = self._deserialize("Disk", pipeline_response)
+            deserialized = response.stream_download(self._client._pipeline)
 
         if response.status_code == 202:
-            deserialized = self._deserialize("Disk", pipeline_response)
+            deserialized = response.stream_download(self._client._pipeline)
 
         if cls:
             return cls(pipeline_response, deserialized, {})  # type: ignore
 
         return deserialized  # type: ignore
-
-    _update_initial.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/disks/{diskName}"
-    }
 
     @overload
     async def begin_update(
@@ -403,14 +368,6 @@ class DisksOperations:
         :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of AsyncLROPoller that returns either Disk or the result of cls(response)
         :rtype: ~azure.core.polling.AsyncLROPoller[~azure.mgmt.compute.v2023_04_02.models.Disk]
         :raises ~azure.core.exceptions.HttpResponseError:
@@ -421,7 +378,7 @@ class DisksOperations:
         self,
         resource_group_name: str,
         disk_name: str,
-        disk: IO,
+        disk: IO[bytes],
         *,
         content_type: str = "application/json",
         **kwargs: Any
@@ -435,18 +392,10 @@ class DisksOperations:
          maximum name length is 80 characters. Required.
         :type disk_name: str
         :param disk: Disk object supplied in the body of the Patch disk operation. Required.
-        :type disk: IO
+        :type disk: IO[bytes]
         :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of AsyncLROPoller that returns either Disk or the result of cls(response)
         :rtype: ~azure.core.polling.AsyncLROPoller[~azure.mgmt.compute.v2023_04_02.models.Disk]
         :raises ~azure.core.exceptions.HttpResponseError:
@@ -454,7 +403,7 @@ class DisksOperations:
 
     @distributed_trace_async
     async def begin_update(
-        self, resource_group_name: str, disk_name: str, disk: Union[_models.DiskUpdate, IO], **kwargs: Any
+        self, resource_group_name: str, disk_name: str, disk: Union[_models.DiskUpdate, IO[bytes]], **kwargs: Any
     ) -> AsyncLROPoller[_models.Disk]:
         """Updates (patches) a disk.
 
@@ -465,19 +414,8 @@ class DisksOperations:
          maximum name length is 80 characters. Required.
         :type disk_name: str
         :param disk: Disk object supplied in the body of the Patch disk operation. Is either a
-         DiskUpdate type or a IO type. Required.
-        :type disk: ~azure.mgmt.compute.v2023_04_02.models.DiskUpdate or IO
-        :keyword content_type: Body Parameter content-type. Known values are: 'application/json'.
-         Default value is None.
-        :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
+         DiskUpdate type or a IO[bytes] type. Required.
+        :type disk: ~azure.mgmt.compute.v2023_04_02.models.DiskUpdate or IO[bytes]
         :return: An instance of AsyncLROPoller that returns either Disk or the result of cls(response)
         :rtype: ~azure.core.polling.AsyncLROPoller[~azure.mgmt.compute.v2023_04_02.models.Disk]
         :raises ~azure.core.exceptions.HttpResponseError:
@@ -503,12 +441,13 @@ class DisksOperations:
                 params=_params,
                 **kwargs
             )
+            await raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):
-            deserialized = self._deserialize("Disk", pipeline_response)
+            deserialized = self._deserialize("Disk", pipeline_response.http_response)
             if cls:
-                return cls(pipeline_response, deserialized, {})
+                return cls(pipeline_response, deserialized, {})  # type: ignore
             return deserialized
 
         if polling is True:
@@ -518,17 +457,15 @@ class DisksOperations:
         else:
             polling_method = polling
         if cont_token:
-            return AsyncLROPoller.from_continuation_token(
+            return AsyncLROPoller[_models.Disk].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return AsyncLROPoller(self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
-
-    begin_update.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/disks/{diskName}"
-    }
+        return AsyncLROPoller[_models.Disk](
+            self._client, raw_result, get_long_running_output, polling_method  # type: ignore
+        )
 
     @distributed_trace_async
     async def get(self, resource_group_name: str, disk_name: str, **kwargs: Any) -> _models.Disk:
@@ -540,12 +477,11 @@ class DisksOperations:
          after the disk is created. Supported characters for the name are a-z, A-Z, 0-9, _ and -. The
          maximum name length is 80 characters. Required.
         :type disk_name: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: Disk or the result of cls(response)
         :rtype: ~azure.mgmt.compute.v2023_04_02.models.Disk
         :raises ~azure.core.exceptions.HttpResponseError:
         """
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -559,21 +495,19 @@ class DisksOperations:
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2023-04-02"))
         cls: ClsType[_models.Disk] = kwargs.pop("cls", None)
 
-        request = build_disks_get_request(
+        _request = build_disks_get_request(
             resource_group_name=resource_group_name,
             disk_name=disk_name,
             subscription_id=self._config.subscription_id,
             api_version=api_version,
-            template_url=self.get.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
         _stream = False
         pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
@@ -582,21 +516,15 @@ class DisksOperations:
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
-        deserialized = self._deserialize("Disk", pipeline_response)
+        deserialized = self._deserialize("Disk", pipeline_response.http_response)
 
         if cls:
-            return cls(pipeline_response, deserialized, {})
+            return cls(pipeline_response, deserialized, {})  # type: ignore
 
-        return deserialized
+        return deserialized  # type: ignore
 
-    get.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/disks/{diskName}"
-    }
-
-    async def _delete_initial(  # pylint: disable=inconsistent-return-statements
-        self, resource_group_name: str, disk_name: str, **kwargs: Any
-    ) -> None:
-        error_map = {
+    async def _delete_initial(self, resource_group_name: str, disk_name: str, **kwargs: Any) -> AsyncIterator[bytes]:
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -608,37 +536,43 @@ class DisksOperations:
         _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
 
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2023-04-02"))
-        cls: ClsType[None] = kwargs.pop("cls", None)
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
 
-        request = build_disks_delete_request(
+        _request = build_disks_delete_request(
             resource_group_name=resource_group_name,
             disk_name=disk_name,
             subscription_id=self._config.subscription_id,
             api_version=api_version,
-            template_url=self._delete_initial.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
-        _stream = False
+        _stream = True
         pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
 
         if response.status_code not in [200, 202, 204]:
+            await response.read()  # Load the body in memory and close the socket
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
-        if cls:
-            return cls(pipeline_response, None, {})
+        if response.status_code == 200:
+            deserialized = response.stream_download(self._client._pipeline)
 
-    _delete_initial.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/disks/{diskName}"
-    }
+        if response.status_code == 202:
+            deserialized = response.stream_download(self._client._pipeline)
+
+        if response.status_code == 204:
+            deserialized = response.stream_download(self._client._pipeline)
+
+        if cls:
+            return cls(pipeline_response, deserialized, {})  # type: ignore
+
+        return deserialized  # type: ignore
 
     @distributed_trace_async
     async def begin_delete(self, resource_group_name: str, disk_name: str, **kwargs: Any) -> AsyncLROPoller[None]:
@@ -650,14 +584,6 @@ class DisksOperations:
          after the disk is created. Supported characters for the name are a-z, A-Z, 0-9, _ and -. The
          maximum name length is 80 characters. Required.
         :type disk_name: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of AsyncLROPoller that returns either None or the result of cls(response)
         :rtype: ~azure.core.polling.AsyncLROPoller[None]
         :raises ~azure.core.exceptions.HttpResponseError:
@@ -671,7 +597,7 @@ class DisksOperations:
         lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
         cont_token: Optional[str] = kwargs.pop("continuation_token", None)
         if cont_token is None:
-            raw_result = await self._delete_initial(  # type: ignore
+            raw_result = await self._delete_initial(
                 resource_group_name=resource_group_name,
                 disk_name=disk_name,
                 api_version=api_version,
@@ -680,11 +606,12 @@ class DisksOperations:
                 params=_params,
                 **kwargs
             )
+            await raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):  # pylint: disable=inconsistent-return-statements
             if cls:
-                return cls(pipeline_response, None, {})
+                return cls(pipeline_response, None, {})  # type: ignore
 
         if polling is True:
             polling_method: AsyncPollingMethod = cast(AsyncPollingMethod, AsyncARMPolling(lro_delay, **kwargs))
@@ -693,17 +620,13 @@ class DisksOperations:
         else:
             polling_method = polling
         if cont_token:
-            return AsyncLROPoller.from_continuation_token(
+            return AsyncLROPoller[None].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return AsyncLROPoller(self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
-
-    begin_delete.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/disks/{diskName}"
-    }
+        return AsyncLROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
 
     @distributed_trace
     def list_by_resource_group(self, resource_group_name: str, **kwargs: Any) -> AsyncIterable["_models.Disk"]:
@@ -711,7 +634,6 @@ class DisksOperations:
 
         :param resource_group_name: The name of the resource group. Required.
         :type resource_group_name: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: An iterator like instance of either Disk or the result of cls(response)
         :rtype: ~azure.core.async_paging.AsyncItemPaged[~azure.mgmt.compute.v2023_04_02.models.Disk]
         :raises ~azure.core.exceptions.HttpResponseError:
@@ -722,7 +644,7 @@ class DisksOperations:
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2023-04-02"))
         cls: ClsType[_models.DiskList] = kwargs.pop("cls", None)
 
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -733,16 +655,14 @@ class DisksOperations:
         def prepare_request(next_link=None):
             if not next_link:
 
-                request = build_disks_list_by_resource_group_request(
+                _request = build_disks_list_by_resource_group_request(
                     resource_group_name=resource_group_name,
                     subscription_id=self._config.subscription_id,
                     api_version=api_version,
-                    template_url=self.list_by_resource_group.metadata["url"],
                     headers=_headers,
                     params=_params,
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
+                _request.url = self._client.format_url(_request.url)
 
             else:
                 # make call to next link with the client's api-version
@@ -753,14 +673,13 @@ class DisksOperations:
                         for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
                     }
                 )
-                _next_request_params["api-version"] = self._config.api_version
-                request = HttpRequest(
+                _next_request_params["api-version"] = self._api_version
+                _request = HttpRequest(
                     "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
-                request.method = "GET"
-            return request
+                _request.url = self._client.format_url(_request.url)
+                _request.method = "GET"
+            return _request
 
         async def extract_data(pipeline_response):
             deserialized = self._deserialize("DiskList", pipeline_response)
@@ -770,11 +689,11 @@ class DisksOperations:
             return deserialized.next_link or None, AsyncList(list_of_elem)
 
         async def get_next(next_link=None):
-            request = prepare_request(next_link)
+            _request = prepare_request(next_link)
 
             _stream = False
             pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-                request, stream=_stream, **kwargs
+                _request, stream=_stream, **kwargs
             )
             response = pipeline_response.http_response
 
@@ -785,16 +704,11 @@ class DisksOperations:
             return pipeline_response
 
         return AsyncItemPaged(get_next, extract_data)
-
-    list_by_resource_group.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/disks"
-    }
 
     @distributed_trace
     def list(self, **kwargs: Any) -> AsyncIterable["_models.Disk"]:
         """Lists all the disks under a subscription.
 
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: An iterator like instance of either Disk or the result of cls(response)
         :rtype: ~azure.core.async_paging.AsyncItemPaged[~azure.mgmt.compute.v2023_04_02.models.Disk]
         :raises ~azure.core.exceptions.HttpResponseError:
@@ -805,7 +719,7 @@ class DisksOperations:
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2023-04-02"))
         cls: ClsType[_models.DiskList] = kwargs.pop("cls", None)
 
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -816,15 +730,13 @@ class DisksOperations:
         def prepare_request(next_link=None):
             if not next_link:
 
-                request = build_disks_list_request(
+                _request = build_disks_list_request(
                     subscription_id=self._config.subscription_id,
                     api_version=api_version,
-                    template_url=self.list.metadata["url"],
                     headers=_headers,
                     params=_params,
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
+                _request.url = self._client.format_url(_request.url)
 
             else:
                 # make call to next link with the client's api-version
@@ -835,14 +747,13 @@ class DisksOperations:
                         for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
                     }
                 )
-                _next_request_params["api-version"] = self._config.api_version
-                request = HttpRequest(
+                _next_request_params["api-version"] = self._api_version
+                _request = HttpRequest(
                     "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
-                request.method = "GET"
-            return request
+                _request.url = self._client.format_url(_request.url)
+                _request.method = "GET"
+            return _request
 
         async def extract_data(pipeline_response):
             deserialized = self._deserialize("DiskList", pipeline_response)
@@ -852,11 +763,11 @@ class DisksOperations:
             return deserialized.next_link or None, AsyncList(list_of_elem)
 
         async def get_next(next_link=None):
-            request = prepare_request(next_link)
+            _request = prepare_request(next_link)
 
             _stream = False
             pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-                request, stream=_stream, **kwargs
+                _request, stream=_stream, **kwargs
             )
             response = pipeline_response.http_response
 
@@ -868,16 +779,14 @@ class DisksOperations:
 
         return AsyncItemPaged(get_next, extract_data)
 
-    list.metadata = {"url": "/subscriptions/{subscriptionId}/providers/Microsoft.Compute/disks"}
-
     async def _grant_access_initial(
         self,
         resource_group_name: str,
         disk_name: str,
-        grant_access_data: Union[_models.GrantAccessData, IO],
+        grant_access_data: Union[_models.GrantAccessData, IO[bytes]],
         **kwargs: Any
-    ) -> Optional[_models.AccessUri]:
-        error_map = {
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -890,7 +799,7 @@ class DisksOperations:
 
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2023-04-02"))
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-        cls: ClsType[Optional[_models.AccessUri]] = kwargs.pop("cls", None)
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
 
         content_type = content_type or "application/json"
         _json = None
@@ -900,7 +809,7 @@ class DisksOperations:
         else:
             _json = self._serialize.body(grant_access_data, "GrantAccessData")
 
-        request = build_disks_grant_access_request(
+        _request = build_disks_grant_access_request(
             resource_group_name=resource_group_name,
             disk_name=disk_name,
             subscription_id=self._config.subscription_id,
@@ -908,36 +817,33 @@ class DisksOperations:
             content_type=content_type,
             json=_json,
             content=_content,
-            template_url=self._grant_access_initial.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
-        _stream = False
+        _stream = True
         pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
 
         if response.status_code not in [200, 202]:
+            await response.read()  # Load the body in memory and close the socket
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
-        deserialized = None
         if response.status_code == 200:
-            deserialized = self._deserialize("AccessUri", pipeline_response)
+            deserialized = response.stream_download(self._client._pipeline)
+
+        if response.status_code == 202:
+            deserialized = response.stream_download(self._client._pipeline)
 
         if cls:
-            return cls(pipeline_response, deserialized, {})
+            return cls(pipeline_response, deserialized, {})  # type: ignore
 
-        return deserialized
-
-    _grant_access_initial.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/disks/{diskName}/beginGetAccess"
-    }
+        return deserialized  # type: ignore
 
     @overload
     async def begin_grant_access(
@@ -963,14 +869,6 @@ class DisksOperations:
         :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of AsyncLROPoller that returns either AccessUri or the result of
          cls(response)
         :rtype: ~azure.core.polling.AsyncLROPoller[~azure.mgmt.compute.v2023_04_02.models.AccessUri]
@@ -982,7 +880,7 @@ class DisksOperations:
         self,
         resource_group_name: str,
         disk_name: str,
-        grant_access_data: IO,
+        grant_access_data: IO[bytes],
         *,
         content_type: str = "application/json",
         **kwargs: Any
@@ -997,18 +895,10 @@ class DisksOperations:
         :type disk_name: str
         :param grant_access_data: Access data object supplied in the body of the get disk access
          operation. Required.
-        :type grant_access_data: IO
+        :type grant_access_data: IO[bytes]
         :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of AsyncLROPoller that returns either AccessUri or the result of
          cls(response)
         :rtype: ~azure.core.polling.AsyncLROPoller[~azure.mgmt.compute.v2023_04_02.models.AccessUri]
@@ -1020,7 +910,7 @@ class DisksOperations:
         self,
         resource_group_name: str,
         disk_name: str,
-        grant_access_data: Union[_models.GrantAccessData, IO],
+        grant_access_data: Union[_models.GrantAccessData, IO[bytes]],
         **kwargs: Any
     ) -> AsyncLROPoller[_models.AccessUri]:
         """Grants access to a disk.
@@ -1032,19 +922,8 @@ class DisksOperations:
          maximum name length is 80 characters. Required.
         :type disk_name: str
         :param grant_access_data: Access data object supplied in the body of the get disk access
-         operation. Is either a GrantAccessData type or a IO type. Required.
-        :type grant_access_data: ~azure.mgmt.compute.v2023_04_02.models.GrantAccessData or IO
-        :keyword content_type: Body Parameter content-type. Known values are: 'application/json'.
-         Default value is None.
-        :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
+         operation. Is either a GrantAccessData type or a IO[bytes] type. Required.
+        :type grant_access_data: ~azure.mgmt.compute.v2023_04_02.models.GrantAccessData or IO[bytes]
         :return: An instance of AsyncLROPoller that returns either AccessUri or the result of
          cls(response)
         :rtype: ~azure.core.polling.AsyncLROPoller[~azure.mgmt.compute.v2023_04_02.models.AccessUri]
@@ -1071,12 +950,13 @@ class DisksOperations:
                 params=_params,
                 **kwargs
             )
+            await raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):
-            deserialized = self._deserialize("AccessUri", pipeline_response)
+            deserialized = self._deserialize("AccessUri", pipeline_response.http_response)
             if cls:
-                return cls(pipeline_response, deserialized, {})
+                return cls(pipeline_response, deserialized, {})  # type: ignore
             return deserialized
 
         if polling is True:
@@ -1088,22 +968,20 @@ class DisksOperations:
         else:
             polling_method = polling
         if cont_token:
-            return AsyncLROPoller.from_continuation_token(
+            return AsyncLROPoller[_models.AccessUri].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return AsyncLROPoller(self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+        return AsyncLROPoller[_models.AccessUri](
+            self._client, raw_result, get_long_running_output, polling_method  # type: ignore
+        )
 
-    begin_grant_access.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/disks/{diskName}/beginGetAccess"
-    }
-
-    async def _revoke_access_initial(  # pylint: disable=inconsistent-return-statements
+    async def _revoke_access_initial(
         self, resource_group_name: str, disk_name: str, **kwargs: Any
-    ) -> None:
-        error_map = {
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -1115,37 +993,40 @@ class DisksOperations:
         _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
 
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2023-04-02"))
-        cls: ClsType[None] = kwargs.pop("cls", None)
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
 
-        request = build_disks_revoke_access_request(
+        _request = build_disks_revoke_access_request(
             resource_group_name=resource_group_name,
             disk_name=disk_name,
             subscription_id=self._config.subscription_id,
             api_version=api_version,
-            template_url=self._revoke_access_initial.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
-        _stream = False
+        _stream = True
         pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
 
         if response.status_code not in [200, 202]:
+            await response.read()  # Load the body in memory and close the socket
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
-        if cls:
-            return cls(pipeline_response, None, {})
+        if response.status_code == 200:
+            deserialized = response.stream_download(self._client._pipeline)
 
-    _revoke_access_initial.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/disks/{diskName}/endGetAccess"
-    }
+        if response.status_code == 202:
+            deserialized = response.stream_download(self._client._pipeline)
+
+        if cls:
+            return cls(pipeline_response, deserialized, {})  # type: ignore
+
+        return deserialized  # type: ignore
 
     @distributed_trace_async
     async def begin_revoke_access(
@@ -1159,14 +1040,6 @@ class DisksOperations:
          after the disk is created. Supported characters for the name are a-z, A-Z, 0-9, _ and -. The
          maximum name length is 80 characters. Required.
         :type disk_name: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of AsyncLROPoller that returns either None or the result of cls(response)
         :rtype: ~azure.core.polling.AsyncLROPoller[None]
         :raises ~azure.core.exceptions.HttpResponseError:
@@ -1180,7 +1053,7 @@ class DisksOperations:
         lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
         cont_token: Optional[str] = kwargs.pop("continuation_token", None)
         if cont_token is None:
-            raw_result = await self._revoke_access_initial(  # type: ignore
+            raw_result = await self._revoke_access_initial(
                 resource_group_name=resource_group_name,
                 disk_name=disk_name,
                 api_version=api_version,
@@ -1189,11 +1062,12 @@ class DisksOperations:
                 params=_params,
                 **kwargs
             )
+            await raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):  # pylint: disable=inconsistent-return-statements
             if cls:
-                return cls(pipeline_response, None, {})
+                return cls(pipeline_response, None, {})  # type: ignore
 
         if polling is True:
             polling_method: AsyncPollingMethod = cast(
@@ -1204,17 +1078,13 @@ class DisksOperations:
         else:
             polling_method = polling
         if cont_token:
-            return AsyncLROPoller.from_continuation_token(
+            return AsyncLROPoller[None].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return AsyncLROPoller(self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
-
-    begin_revoke_access.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/disks/{diskName}/endGetAccess"
-    }
+        return AsyncLROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
 
 
 class DiskAccessesOperations:
@@ -1238,9 +1108,13 @@ class DiskAccessesOperations:
         self._api_version = input_args.pop(0) if input_args else kwargs.pop("api_version")
 
     async def _create_or_update_initial(
-        self, resource_group_name: str, disk_access_name: str, disk_access: Union[_models.DiskAccess, IO], **kwargs: Any
-    ) -> _models.DiskAccess:
-        error_map = {
+        self,
+        resource_group_name: str,
+        disk_access_name: str,
+        disk_access: Union[_models.DiskAccess, IO[bytes]],
+        **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -1253,7 +1127,7 @@ class DiskAccessesOperations:
 
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2023-04-02"))
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-        cls: ClsType[_models.DiskAccess] = kwargs.pop("cls", None)
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
 
         content_type = content_type or "application/json"
         _json = None
@@ -1263,7 +1137,7 @@ class DiskAccessesOperations:
         else:
             _json = self._serialize.body(disk_access, "DiskAccess")
 
-        request = build_disk_accesses_create_or_update_request(
+        _request = build_disk_accesses_create_or_update_request(
             resource_group_name=resource_group_name,
             disk_access_name=disk_access_name,
             subscription_id=self._config.subscription_id,
@@ -1271,38 +1145,33 @@ class DiskAccessesOperations:
             content_type=content_type,
             json=_json,
             content=_content,
-            template_url=self._create_or_update_initial.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
-        _stream = False
+        _stream = True
         pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
 
         if response.status_code not in [200, 202]:
+            await response.read()  # Load the body in memory and close the socket
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
         if response.status_code == 200:
-            deserialized = self._deserialize("DiskAccess", pipeline_response)
+            deserialized = response.stream_download(self._client._pipeline)
 
         if response.status_code == 202:
-            deserialized = self._deserialize("DiskAccess", pipeline_response)
+            deserialized = response.stream_download(self._client._pipeline)
 
         if cls:
             return cls(pipeline_response, deserialized, {})  # type: ignore
 
         return deserialized  # type: ignore
-
-    _create_or_update_initial.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/diskAccesses/{diskAccessName}"
-    }
 
     @overload
     async def begin_create_or_update(
@@ -1328,14 +1197,6 @@ class DiskAccessesOperations:
         :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of AsyncLROPoller that returns either DiskAccess or the result of
          cls(response)
         :rtype: ~azure.core.polling.AsyncLROPoller[~azure.mgmt.compute.v2023_04_02.models.DiskAccess]
@@ -1347,7 +1208,7 @@ class DiskAccessesOperations:
         self,
         resource_group_name: str,
         disk_access_name: str,
-        disk_access: IO,
+        disk_access: IO[bytes],
         *,
         content_type: str = "application/json",
         **kwargs: Any
@@ -1362,18 +1223,10 @@ class DiskAccessesOperations:
         :type disk_access_name: str
         :param disk_access: disk access object supplied in the body of the Put disk access operation.
          Required.
-        :type disk_access: IO
+        :type disk_access: IO[bytes]
         :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of AsyncLROPoller that returns either DiskAccess or the result of
          cls(response)
         :rtype: ~azure.core.polling.AsyncLROPoller[~azure.mgmt.compute.v2023_04_02.models.DiskAccess]
@@ -1382,7 +1235,11 @@ class DiskAccessesOperations:
 
     @distributed_trace_async
     async def begin_create_or_update(
-        self, resource_group_name: str, disk_access_name: str, disk_access: Union[_models.DiskAccess, IO], **kwargs: Any
+        self,
+        resource_group_name: str,
+        disk_access_name: str,
+        disk_access: Union[_models.DiskAccess, IO[bytes]],
+        **kwargs: Any
     ) -> AsyncLROPoller[_models.DiskAccess]:
         """Creates or updates a disk access resource.
 
@@ -1393,19 +1250,8 @@ class DiskAccessesOperations:
          are a-z, A-Z, 0-9, _ and -. The maximum name length is 80 characters. Required.
         :type disk_access_name: str
         :param disk_access: disk access object supplied in the body of the Put disk access operation.
-         Is either a DiskAccess type or a IO type. Required.
-        :type disk_access: ~azure.mgmt.compute.v2023_04_02.models.DiskAccess or IO
-        :keyword content_type: Body Parameter content-type. Known values are: 'application/json'.
-         Default value is None.
-        :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
+         Is either a DiskAccess type or a IO[bytes] type. Required.
+        :type disk_access: ~azure.mgmt.compute.v2023_04_02.models.DiskAccess or IO[bytes]
         :return: An instance of AsyncLROPoller that returns either DiskAccess or the result of
          cls(response)
         :rtype: ~azure.core.polling.AsyncLROPoller[~azure.mgmt.compute.v2023_04_02.models.DiskAccess]
@@ -1432,12 +1278,13 @@ class DiskAccessesOperations:
                 params=_params,
                 **kwargs
             )
+            await raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):
-            deserialized = self._deserialize("DiskAccess", pipeline_response)
+            deserialized = self._deserialize("DiskAccess", pipeline_response.http_response)
             if cls:
-                return cls(pipeline_response, deserialized, {})
+                return cls(pipeline_response, deserialized, {})  # type: ignore
             return deserialized
 
         if polling is True:
@@ -1447,26 +1294,24 @@ class DiskAccessesOperations:
         else:
             polling_method = polling
         if cont_token:
-            return AsyncLROPoller.from_continuation_token(
+            return AsyncLROPoller[_models.DiskAccess].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return AsyncLROPoller(self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
-
-    begin_create_or_update.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/diskAccesses/{diskAccessName}"
-    }
+        return AsyncLROPoller[_models.DiskAccess](
+            self._client, raw_result, get_long_running_output, polling_method  # type: ignore
+        )
 
     async def _update_initial(
         self,
         resource_group_name: str,
         disk_access_name: str,
-        disk_access: Union[_models.DiskAccessUpdate, IO],
+        disk_access: Union[_models.DiskAccessUpdate, IO[bytes]],
         **kwargs: Any
-    ) -> _models.DiskAccess:
-        error_map = {
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -1479,7 +1324,7 @@ class DiskAccessesOperations:
 
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2023-04-02"))
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-        cls: ClsType[_models.DiskAccess] = kwargs.pop("cls", None)
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
 
         content_type = content_type or "application/json"
         _json = None
@@ -1489,7 +1334,7 @@ class DiskAccessesOperations:
         else:
             _json = self._serialize.body(disk_access, "DiskAccessUpdate")
 
-        request = build_disk_accesses_update_request(
+        _request = build_disk_accesses_update_request(
             resource_group_name=resource_group_name,
             disk_access_name=disk_access_name,
             subscription_id=self._config.subscription_id,
@@ -1497,38 +1342,33 @@ class DiskAccessesOperations:
             content_type=content_type,
             json=_json,
             content=_content,
-            template_url=self._update_initial.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
-        _stream = False
+        _stream = True
         pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
 
         if response.status_code not in [200, 202]:
+            await response.read()  # Load the body in memory and close the socket
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
         if response.status_code == 200:
-            deserialized = self._deserialize("DiskAccess", pipeline_response)
+            deserialized = response.stream_download(self._client._pipeline)
 
         if response.status_code == 202:
-            deserialized = self._deserialize("DiskAccess", pipeline_response)
+            deserialized = response.stream_download(self._client._pipeline)
 
         if cls:
             return cls(pipeline_response, deserialized, {})  # type: ignore
 
         return deserialized  # type: ignore
-
-    _update_initial.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/diskAccesses/{diskAccessName}"
-    }
 
     @overload
     async def begin_update(
@@ -1554,14 +1394,6 @@ class DiskAccessesOperations:
         :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of AsyncLROPoller that returns either DiskAccess or the result of
          cls(response)
         :rtype: ~azure.core.polling.AsyncLROPoller[~azure.mgmt.compute.v2023_04_02.models.DiskAccess]
@@ -1573,7 +1405,7 @@ class DiskAccessesOperations:
         self,
         resource_group_name: str,
         disk_access_name: str,
-        disk_access: IO,
+        disk_access: IO[bytes],
         *,
         content_type: str = "application/json",
         **kwargs: Any
@@ -1588,18 +1420,10 @@ class DiskAccessesOperations:
         :type disk_access_name: str
         :param disk_access: disk access object supplied in the body of the Patch disk access operation.
          Required.
-        :type disk_access: IO
+        :type disk_access: IO[bytes]
         :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of AsyncLROPoller that returns either DiskAccess or the result of
          cls(response)
         :rtype: ~azure.core.polling.AsyncLROPoller[~azure.mgmt.compute.v2023_04_02.models.DiskAccess]
@@ -1611,7 +1435,7 @@ class DiskAccessesOperations:
         self,
         resource_group_name: str,
         disk_access_name: str,
-        disk_access: Union[_models.DiskAccessUpdate, IO],
+        disk_access: Union[_models.DiskAccessUpdate, IO[bytes]],
         **kwargs: Any
     ) -> AsyncLROPoller[_models.DiskAccess]:
         """Updates (patches) a disk access resource.
@@ -1623,19 +1447,8 @@ class DiskAccessesOperations:
          are a-z, A-Z, 0-9, _ and -. The maximum name length is 80 characters. Required.
         :type disk_access_name: str
         :param disk_access: disk access object supplied in the body of the Patch disk access operation.
-         Is either a DiskAccessUpdate type or a IO type. Required.
-        :type disk_access: ~azure.mgmt.compute.v2023_04_02.models.DiskAccessUpdate or IO
-        :keyword content_type: Body Parameter content-type. Known values are: 'application/json'.
-         Default value is None.
-        :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
+         Is either a DiskAccessUpdate type or a IO[bytes] type. Required.
+        :type disk_access: ~azure.mgmt.compute.v2023_04_02.models.DiskAccessUpdate or IO[bytes]
         :return: An instance of AsyncLROPoller that returns either DiskAccess or the result of
          cls(response)
         :rtype: ~azure.core.polling.AsyncLROPoller[~azure.mgmt.compute.v2023_04_02.models.DiskAccess]
@@ -1662,12 +1475,13 @@ class DiskAccessesOperations:
                 params=_params,
                 **kwargs
             )
+            await raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):
-            deserialized = self._deserialize("DiskAccess", pipeline_response)
+            deserialized = self._deserialize("DiskAccess", pipeline_response.http_response)
             if cls:
-                return cls(pipeline_response, deserialized, {})
+                return cls(pipeline_response, deserialized, {})  # type: ignore
             return deserialized
 
         if polling is True:
@@ -1677,17 +1491,15 @@ class DiskAccessesOperations:
         else:
             polling_method = polling
         if cont_token:
-            return AsyncLROPoller.from_continuation_token(
+            return AsyncLROPoller[_models.DiskAccess].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return AsyncLROPoller(self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
-
-    begin_update.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/diskAccesses/{diskAccessName}"
-    }
+        return AsyncLROPoller[_models.DiskAccess](
+            self._client, raw_result, get_long_running_output, polling_method  # type: ignore
+        )
 
     @distributed_trace_async
     async def get(self, resource_group_name: str, disk_access_name: str, **kwargs: Any) -> _models.DiskAccess:
@@ -1699,12 +1511,11 @@ class DiskAccessesOperations:
          can't be changed after the disk encryption set is created. Supported characters for the name
          are a-z, A-Z, 0-9, _ and -. The maximum name length is 80 characters. Required.
         :type disk_access_name: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: DiskAccess or the result of cls(response)
         :rtype: ~azure.mgmt.compute.v2023_04_02.models.DiskAccess
         :raises ~azure.core.exceptions.HttpResponseError:
         """
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -1718,21 +1529,19 @@ class DiskAccessesOperations:
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2023-04-02"))
         cls: ClsType[_models.DiskAccess] = kwargs.pop("cls", None)
 
-        request = build_disk_accesses_get_request(
+        _request = build_disk_accesses_get_request(
             resource_group_name=resource_group_name,
             disk_access_name=disk_access_name,
             subscription_id=self._config.subscription_id,
             api_version=api_version,
-            template_url=self.get.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
         _stream = False
         pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
@@ -1741,21 +1550,17 @@ class DiskAccessesOperations:
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
-        deserialized = self._deserialize("DiskAccess", pipeline_response)
+        deserialized = self._deserialize("DiskAccess", pipeline_response.http_response)
 
         if cls:
-            return cls(pipeline_response, deserialized, {})
+            return cls(pipeline_response, deserialized, {})  # type: ignore
 
-        return deserialized
+        return deserialized  # type: ignore
 
-    get.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/diskAccesses/{diskAccessName}"
-    }
-
-    async def _delete_initial(  # pylint: disable=inconsistent-return-statements
+    async def _delete_initial(
         self, resource_group_name: str, disk_access_name: str, **kwargs: Any
-    ) -> None:
-        error_map = {
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -1767,37 +1572,43 @@ class DiskAccessesOperations:
         _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
 
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2023-04-02"))
-        cls: ClsType[None] = kwargs.pop("cls", None)
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
 
-        request = build_disk_accesses_delete_request(
+        _request = build_disk_accesses_delete_request(
             resource_group_name=resource_group_name,
             disk_access_name=disk_access_name,
             subscription_id=self._config.subscription_id,
             api_version=api_version,
-            template_url=self._delete_initial.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
-        _stream = False
+        _stream = True
         pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
 
         if response.status_code not in [200, 202, 204]:
+            await response.read()  # Load the body in memory and close the socket
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
-        if cls:
-            return cls(pipeline_response, None, {})
+        if response.status_code == 200:
+            deserialized = response.stream_download(self._client._pipeline)
 
-    _delete_initial.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/diskAccesses/{diskAccessName}"
-    }
+        if response.status_code == 202:
+            deserialized = response.stream_download(self._client._pipeline)
+
+        if response.status_code == 204:
+            deserialized = response.stream_download(self._client._pipeline)
+
+        if cls:
+            return cls(pipeline_response, deserialized, {})  # type: ignore
+
+        return deserialized  # type: ignore
 
     @distributed_trace_async
     async def begin_delete(
@@ -1811,14 +1622,6 @@ class DiskAccessesOperations:
          can't be changed after the disk encryption set is created. Supported characters for the name
          are a-z, A-Z, 0-9, _ and -. The maximum name length is 80 characters. Required.
         :type disk_access_name: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of AsyncLROPoller that returns either None or the result of cls(response)
         :rtype: ~azure.core.polling.AsyncLROPoller[None]
         :raises ~azure.core.exceptions.HttpResponseError:
@@ -1832,7 +1635,7 @@ class DiskAccessesOperations:
         lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
         cont_token: Optional[str] = kwargs.pop("continuation_token", None)
         if cont_token is None:
-            raw_result = await self._delete_initial(  # type: ignore
+            raw_result = await self._delete_initial(
                 resource_group_name=resource_group_name,
                 disk_access_name=disk_access_name,
                 api_version=api_version,
@@ -1841,11 +1644,12 @@ class DiskAccessesOperations:
                 params=_params,
                 **kwargs
             )
+            await raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):  # pylint: disable=inconsistent-return-statements
             if cls:
-                return cls(pipeline_response, None, {})
+                return cls(pipeline_response, None, {})  # type: ignore
 
         if polling is True:
             polling_method: AsyncPollingMethod = cast(AsyncPollingMethod, AsyncARMPolling(lro_delay, **kwargs))
@@ -1854,17 +1658,13 @@ class DiskAccessesOperations:
         else:
             polling_method = polling
         if cont_token:
-            return AsyncLROPoller.from_continuation_token(
+            return AsyncLROPoller[None].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return AsyncLROPoller(self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
-
-    begin_delete.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/diskAccesses/{diskAccessName}"
-    }
+        return AsyncLROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
 
     @distributed_trace
     def list_by_resource_group(self, resource_group_name: str, **kwargs: Any) -> AsyncIterable["_models.DiskAccess"]:
@@ -1872,7 +1672,6 @@ class DiskAccessesOperations:
 
         :param resource_group_name: The name of the resource group. Required.
         :type resource_group_name: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: An iterator like instance of either DiskAccess or the result of cls(response)
         :rtype:
          ~azure.core.async_paging.AsyncItemPaged[~azure.mgmt.compute.v2023_04_02.models.DiskAccess]
@@ -1884,7 +1683,7 @@ class DiskAccessesOperations:
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2023-04-02"))
         cls: ClsType[_models.DiskAccessList] = kwargs.pop("cls", None)
 
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -1895,16 +1694,14 @@ class DiskAccessesOperations:
         def prepare_request(next_link=None):
             if not next_link:
 
-                request = build_disk_accesses_list_by_resource_group_request(
+                _request = build_disk_accesses_list_by_resource_group_request(
                     resource_group_name=resource_group_name,
                     subscription_id=self._config.subscription_id,
                     api_version=api_version,
-                    template_url=self.list_by_resource_group.metadata["url"],
                     headers=_headers,
                     params=_params,
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
+                _request.url = self._client.format_url(_request.url)
 
             else:
                 # make call to next link with the client's api-version
@@ -1915,14 +1712,13 @@ class DiskAccessesOperations:
                         for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
                     }
                 )
-                _next_request_params["api-version"] = self._config.api_version
-                request = HttpRequest(
+                _next_request_params["api-version"] = self._api_version
+                _request = HttpRequest(
                     "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
-                request.method = "GET"
-            return request
+                _request.url = self._client.format_url(_request.url)
+                _request.method = "GET"
+            return _request
 
         async def extract_data(pipeline_response):
             deserialized = self._deserialize("DiskAccessList", pipeline_response)
@@ -1932,11 +1728,11 @@ class DiskAccessesOperations:
             return deserialized.next_link or None, AsyncList(list_of_elem)
 
         async def get_next(next_link=None):
-            request = prepare_request(next_link)
+            _request = prepare_request(next_link)
 
             _stream = False
             pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-                request, stream=_stream, **kwargs
+                _request, stream=_stream, **kwargs
             )
             response = pipeline_response.http_response
 
@@ -1947,16 +1743,11 @@ class DiskAccessesOperations:
             return pipeline_response
 
         return AsyncItemPaged(get_next, extract_data)
-
-    list_by_resource_group.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/diskAccesses"
-    }
 
     @distributed_trace
     def list(self, **kwargs: Any) -> AsyncIterable["_models.DiskAccess"]:
         """Lists all the disk access resources under a subscription.
 
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: An iterator like instance of either DiskAccess or the result of cls(response)
         :rtype:
          ~azure.core.async_paging.AsyncItemPaged[~azure.mgmt.compute.v2023_04_02.models.DiskAccess]
@@ -1968,7 +1759,7 @@ class DiskAccessesOperations:
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2023-04-02"))
         cls: ClsType[_models.DiskAccessList] = kwargs.pop("cls", None)
 
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -1979,15 +1770,13 @@ class DiskAccessesOperations:
         def prepare_request(next_link=None):
             if not next_link:
 
-                request = build_disk_accesses_list_request(
+                _request = build_disk_accesses_list_request(
                     subscription_id=self._config.subscription_id,
                     api_version=api_version,
-                    template_url=self.list.metadata["url"],
                     headers=_headers,
                     params=_params,
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
+                _request.url = self._client.format_url(_request.url)
 
             else:
                 # make call to next link with the client's api-version
@@ -1998,14 +1787,13 @@ class DiskAccessesOperations:
                         for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
                     }
                 )
-                _next_request_params["api-version"] = self._config.api_version
-                request = HttpRequest(
+                _next_request_params["api-version"] = self._api_version
+                _request = HttpRequest(
                     "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
-                request.method = "GET"
-            return request
+                _request.url = self._client.format_url(_request.url)
+                _request.method = "GET"
+            return _request
 
         async def extract_data(pipeline_response):
             deserialized = self._deserialize("DiskAccessList", pipeline_response)
@@ -2015,11 +1803,11 @@ class DiskAccessesOperations:
             return deserialized.next_link or None, AsyncList(list_of_elem)
 
         async def get_next(next_link=None):
-            request = prepare_request(next_link)
+            _request = prepare_request(next_link)
 
             _stream = False
             pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-                request, stream=_stream, **kwargs
+                _request, stream=_stream, **kwargs
             )
             response = pipeline_response.http_response
 
@@ -2030,8 +1818,6 @@ class DiskAccessesOperations:
             return pipeline_response
 
         return AsyncItemPaged(get_next, extract_data)
-
-    list.metadata = {"url": "/subscriptions/{subscriptionId}/providers/Microsoft.Compute/diskAccesses"}
 
     @distributed_trace_async
     async def get_private_link_resources(
@@ -2045,12 +1831,11 @@ class DiskAccessesOperations:
          can't be changed after the disk encryption set is created. Supported characters for the name
          are a-z, A-Z, 0-9, _ and -. The maximum name length is 80 characters. Required.
         :type disk_access_name: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: PrivateLinkResourceListResult or the result of cls(response)
         :rtype: ~azure.mgmt.compute.v2023_04_02.models.PrivateLinkResourceListResult
         :raises ~azure.core.exceptions.HttpResponseError:
         """
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -2064,21 +1849,19 @@ class DiskAccessesOperations:
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2023-04-02"))
         cls: ClsType[_models.PrivateLinkResourceListResult] = kwargs.pop("cls", None)
 
-        request = build_disk_accesses_get_private_link_resources_request(
+        _request = build_disk_accesses_get_private_link_resources_request(
             resource_group_name=resource_group_name,
             disk_access_name=disk_access_name,
             subscription_id=self._config.subscription_id,
             api_version=api_version,
-            template_url=self.get_private_link_resources.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
         _stream = False
         pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
@@ -2087,26 +1870,22 @@ class DiskAccessesOperations:
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
-        deserialized = self._deserialize("PrivateLinkResourceListResult", pipeline_response)
+        deserialized = self._deserialize("PrivateLinkResourceListResult", pipeline_response.http_response)
 
         if cls:
-            return cls(pipeline_response, deserialized, {})
+            return cls(pipeline_response, deserialized, {})  # type: ignore
 
-        return deserialized
+        return deserialized  # type: ignore
 
-    get_private_link_resources.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/diskAccesses/{diskAccessName}/privateLinkResources"
-    }
-
-    async def _update_a_private_endpoint_connection_initial(
+    async def _update_a_private_endpoint_connection_initial(  # pylint: disable=name-too-long
         self,
         resource_group_name: str,
         disk_access_name: str,
         private_endpoint_connection_name: str,
-        private_endpoint_connection: Union[_models.PrivateEndpointConnection, IO],
+        private_endpoint_connection: Union[_models.PrivateEndpointConnection, IO[bytes]],
         **kwargs: Any
-    ) -> _models.PrivateEndpointConnection:
-        error_map = {
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -2119,7 +1898,7 @@ class DiskAccessesOperations:
 
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2023-04-02"))
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-        cls: ClsType[_models.PrivateEndpointConnection] = kwargs.pop("cls", None)
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
 
         content_type = content_type or "application/json"
         _json = None
@@ -2129,7 +1908,7 @@ class DiskAccessesOperations:
         else:
             _json = self._serialize.body(private_endpoint_connection, "PrivateEndpointConnection")
 
-        request = build_disk_accesses_update_a_private_endpoint_connection_request(
+        _request = build_disk_accesses_update_a_private_endpoint_connection_request(
             resource_group_name=resource_group_name,
             disk_access_name=disk_access_name,
             private_endpoint_connection_name=private_endpoint_connection_name,
@@ -2138,41 +1917,36 @@ class DiskAccessesOperations:
             content_type=content_type,
             json=_json,
             content=_content,
-            template_url=self._update_a_private_endpoint_connection_initial.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
-        _stream = False
+        _stream = True
         pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
 
         if response.status_code not in [200, 202]:
+            await response.read()  # Load the body in memory and close the socket
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
         if response.status_code == 200:
-            deserialized = self._deserialize("PrivateEndpointConnection", pipeline_response)
+            deserialized = response.stream_download(self._client._pipeline)
 
         if response.status_code == 202:
-            deserialized = self._deserialize("PrivateEndpointConnection", pipeline_response)
+            deserialized = response.stream_download(self._client._pipeline)
 
         if cls:
             return cls(pipeline_response, deserialized, {})  # type: ignore
 
         return deserialized  # type: ignore
 
-    _update_a_private_endpoint_connection_initial.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/diskAccesses/{diskAccessName}/privateEndpointConnections/{privateEndpointConnectionName}"
-    }
-
     @overload
-    async def begin_update_a_private_endpoint_connection(
+    async def begin_update_a_private_endpoint_connection(  # pylint: disable=name-too-long
         self,
         resource_group_name: str,
         disk_access_name: str,
@@ -2200,14 +1974,6 @@ class DiskAccessesOperations:
         :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of AsyncLROPoller that returns either PrivateEndpointConnection or the
          result of cls(response)
         :rtype:
@@ -2216,12 +1982,12 @@ class DiskAccessesOperations:
         """
 
     @overload
-    async def begin_update_a_private_endpoint_connection(
+    async def begin_update_a_private_endpoint_connection(  # pylint: disable=name-too-long
         self,
         resource_group_name: str,
         disk_access_name: str,
         private_endpoint_connection_name: str,
-        private_endpoint_connection: IO,
+        private_endpoint_connection: IO[bytes],
         *,
         content_type: str = "application/json",
         **kwargs: Any
@@ -2239,18 +2005,10 @@ class DiskAccessesOperations:
         :type private_endpoint_connection_name: str
         :param private_endpoint_connection: private endpoint connection object supplied in the body of
          the Put private endpoint connection operation. Required.
-        :type private_endpoint_connection: IO
+        :type private_endpoint_connection: IO[bytes]
         :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of AsyncLROPoller that returns either PrivateEndpointConnection or the
          result of cls(response)
         :rtype:
@@ -2259,12 +2017,12 @@ class DiskAccessesOperations:
         """
 
     @distributed_trace_async
-    async def begin_update_a_private_endpoint_connection(
+    async def begin_update_a_private_endpoint_connection(  # pylint: disable=name-too-long
         self,
         resource_group_name: str,
         disk_access_name: str,
         private_endpoint_connection_name: str,
-        private_endpoint_connection: Union[_models.PrivateEndpointConnection, IO],
+        private_endpoint_connection: Union[_models.PrivateEndpointConnection, IO[bytes]],
         **kwargs: Any
     ) -> AsyncLROPoller[_models.PrivateEndpointConnection]:
         """Approve or reject a private endpoint connection under disk access resource, this can't be used
@@ -2280,20 +2038,9 @@ class DiskAccessesOperations:
         :type private_endpoint_connection_name: str
         :param private_endpoint_connection: private endpoint connection object supplied in the body of
          the Put private endpoint connection operation. Is either a PrivateEndpointConnection type or a
-         IO type. Required.
+         IO[bytes] type. Required.
         :type private_endpoint_connection:
-         ~azure.mgmt.compute.v2023_04_02.models.PrivateEndpointConnection or IO
-        :keyword content_type: Body Parameter content-type. Known values are: 'application/json'.
-         Default value is None.
-        :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
+         ~azure.mgmt.compute.v2023_04_02.models.PrivateEndpointConnection or IO[bytes]
         :return: An instance of AsyncLROPoller that returns either PrivateEndpointConnection or the
          result of cls(response)
         :rtype:
@@ -2322,12 +2069,13 @@ class DiskAccessesOperations:
                 params=_params,
                 **kwargs
             )
+            await raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):
-            deserialized = self._deserialize("PrivateEndpointConnection", pipeline_response)
+            deserialized = self._deserialize("PrivateEndpointConnection", pipeline_response.http_response)
             if cls:
-                return cls(pipeline_response, deserialized, {})
+                return cls(pipeline_response, deserialized, {})  # type: ignore
             return deserialized
 
         if polling is True:
@@ -2337,17 +2085,15 @@ class DiskAccessesOperations:
         else:
             polling_method = polling
         if cont_token:
-            return AsyncLROPoller.from_continuation_token(
+            return AsyncLROPoller[_models.PrivateEndpointConnection].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return AsyncLROPoller(self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
-
-    begin_update_a_private_endpoint_connection.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/diskAccesses/{diskAccessName}/privateEndpointConnections/{privateEndpointConnectionName}"
-    }
+        return AsyncLROPoller[_models.PrivateEndpointConnection](
+            self._client, raw_result, get_long_running_output, polling_method  # type: ignore
+        )
 
     @distributed_trace_async
     async def get_a_private_endpoint_connection(
@@ -2363,12 +2109,11 @@ class DiskAccessesOperations:
         :type disk_access_name: str
         :param private_endpoint_connection_name: The name of the private endpoint connection. Required.
         :type private_endpoint_connection_name: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: PrivateEndpointConnection or the result of cls(response)
         :rtype: ~azure.mgmt.compute.v2023_04_02.models.PrivateEndpointConnection
         :raises ~azure.core.exceptions.HttpResponseError:
         """
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -2382,22 +2127,20 @@ class DiskAccessesOperations:
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2023-04-02"))
         cls: ClsType[_models.PrivateEndpointConnection] = kwargs.pop("cls", None)
 
-        request = build_disk_accesses_get_a_private_endpoint_connection_request(
+        _request = build_disk_accesses_get_a_private_endpoint_connection_request(
             resource_group_name=resource_group_name,
             disk_access_name=disk_access_name,
             private_endpoint_connection_name=private_endpoint_connection_name,
             subscription_id=self._config.subscription_id,
             api_version=api_version,
-            template_url=self.get_a_private_endpoint_connection.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
         _stream = False
         pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
@@ -2406,21 +2149,17 @@ class DiskAccessesOperations:
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
-        deserialized = self._deserialize("PrivateEndpointConnection", pipeline_response)
+        deserialized = self._deserialize("PrivateEndpointConnection", pipeline_response.http_response)
 
         if cls:
-            return cls(pipeline_response, deserialized, {})
+            return cls(pipeline_response, deserialized, {})  # type: ignore
 
-        return deserialized
+        return deserialized  # type: ignore
 
-    get_a_private_endpoint_connection.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/diskAccesses/{diskAccessName}/privateEndpointConnections/{privateEndpointConnectionName}"
-    }
-
-    async def _delete_a_private_endpoint_connection_initial(  # pylint: disable=inconsistent-return-statements
+    async def _delete_a_private_endpoint_connection_initial(  # pylint: disable=name-too-long
         self, resource_group_name: str, disk_access_name: str, private_endpoint_connection_name: str, **kwargs: Any
-    ) -> None:
-        error_map = {
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -2432,41 +2171,47 @@ class DiskAccessesOperations:
         _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
 
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2023-04-02"))
-        cls: ClsType[None] = kwargs.pop("cls", None)
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
 
-        request = build_disk_accesses_delete_a_private_endpoint_connection_request(
+        _request = build_disk_accesses_delete_a_private_endpoint_connection_request(
             resource_group_name=resource_group_name,
             disk_access_name=disk_access_name,
             private_endpoint_connection_name=private_endpoint_connection_name,
             subscription_id=self._config.subscription_id,
             api_version=api_version,
-            template_url=self._delete_a_private_endpoint_connection_initial.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
-        _stream = False
+        _stream = True
         pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
 
         if response.status_code not in [200, 202, 204]:
+            await response.read()  # Load the body in memory and close the socket
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
-        if cls:
-            return cls(pipeline_response, None, {})
+        if response.status_code == 200:
+            deserialized = response.stream_download(self._client._pipeline)
 
-    _delete_a_private_endpoint_connection_initial.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/diskAccesses/{diskAccessName}/privateEndpointConnections/{privateEndpointConnectionName}"
-    }
+        if response.status_code == 202:
+            deserialized = response.stream_download(self._client._pipeline)
+
+        if response.status_code == 204:
+            deserialized = response.stream_download(self._client._pipeline)
+
+        if cls:
+            return cls(pipeline_response, deserialized, {})  # type: ignore
+
+        return deserialized  # type: ignore
 
     @distributed_trace_async
-    async def begin_delete_a_private_endpoint_connection(
+    async def begin_delete_a_private_endpoint_connection(  # pylint: disable=name-too-long
         self, resource_group_name: str, disk_access_name: str, private_endpoint_connection_name: str, **kwargs: Any
     ) -> AsyncLROPoller[None]:
         """Deletes a private endpoint connection under a disk access resource.
@@ -2479,14 +2224,6 @@ class DiskAccessesOperations:
         :type disk_access_name: str
         :param private_endpoint_connection_name: The name of the private endpoint connection. Required.
         :type private_endpoint_connection_name: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of AsyncLROPoller that returns either None or the result of cls(response)
         :rtype: ~azure.core.polling.AsyncLROPoller[None]
         :raises ~azure.core.exceptions.HttpResponseError:
@@ -2500,7 +2237,7 @@ class DiskAccessesOperations:
         lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
         cont_token: Optional[str] = kwargs.pop("continuation_token", None)
         if cont_token is None:
-            raw_result = await self._delete_a_private_endpoint_connection_initial(  # type: ignore
+            raw_result = await self._delete_a_private_endpoint_connection_initial(
                 resource_group_name=resource_group_name,
                 disk_access_name=disk_access_name,
                 private_endpoint_connection_name=private_endpoint_connection_name,
@@ -2510,11 +2247,12 @@ class DiskAccessesOperations:
                 params=_params,
                 **kwargs
             )
+            await raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):  # pylint: disable=inconsistent-return-statements
             if cls:
-                return cls(pipeline_response, None, {})
+                return cls(pipeline_response, None, {})  # type: ignore
 
         if polling is True:
             polling_method: AsyncPollingMethod = cast(AsyncPollingMethod, AsyncARMPolling(lro_delay, **kwargs))
@@ -2523,17 +2261,13 @@ class DiskAccessesOperations:
         else:
             polling_method = polling
         if cont_token:
-            return AsyncLROPoller.from_continuation_token(
+            return AsyncLROPoller[None].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return AsyncLROPoller(self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
-
-    begin_delete_a_private_endpoint_connection.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/diskAccesses/{diskAccessName}/privateEndpointConnections/{privateEndpointConnectionName}"
-    }
+        return AsyncLROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
 
     @distributed_trace
     def list_private_endpoint_connections(
@@ -2547,7 +2281,6 @@ class DiskAccessesOperations:
          can't be changed after the disk encryption set is created. Supported characters for the name
          are a-z, A-Z, 0-9, _ and -. The maximum name length is 80 characters. Required.
         :type disk_access_name: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: An iterator like instance of either PrivateEndpointConnection or the result of
          cls(response)
         :rtype:
@@ -2560,7 +2293,7 @@ class DiskAccessesOperations:
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2023-04-02"))
         cls: ClsType[_models.PrivateEndpointConnectionListResult] = kwargs.pop("cls", None)
 
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -2571,17 +2304,15 @@ class DiskAccessesOperations:
         def prepare_request(next_link=None):
             if not next_link:
 
-                request = build_disk_accesses_list_private_endpoint_connections_request(
+                _request = build_disk_accesses_list_private_endpoint_connections_request(
                     resource_group_name=resource_group_name,
                     disk_access_name=disk_access_name,
                     subscription_id=self._config.subscription_id,
                     api_version=api_version,
-                    template_url=self.list_private_endpoint_connections.metadata["url"],
                     headers=_headers,
                     params=_params,
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
+                _request.url = self._client.format_url(_request.url)
 
             else:
                 # make call to next link with the client's api-version
@@ -2592,14 +2323,13 @@ class DiskAccessesOperations:
                         for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
                     }
                 )
-                _next_request_params["api-version"] = self._config.api_version
-                request = HttpRequest(
+                _next_request_params["api-version"] = self._api_version
+                _request = HttpRequest(
                     "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
-                request.method = "GET"
-            return request
+                _request.url = self._client.format_url(_request.url)
+                _request.method = "GET"
+            return _request
 
         async def extract_data(pipeline_response):
             deserialized = self._deserialize("PrivateEndpointConnectionListResult", pipeline_response)
@@ -2609,11 +2339,11 @@ class DiskAccessesOperations:
             return deserialized.next_link or None, AsyncList(list_of_elem)
 
         async def get_next(next_link=None):
-            request = prepare_request(next_link)
+            _request = prepare_request(next_link)
 
             _stream = False
             pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-                request, stream=_stream, **kwargs
+                _request, stream=_stream, **kwargs
             )
             response = pipeline_response.http_response
 
@@ -2624,10 +2354,6 @@ class DiskAccessesOperations:
             return pipeline_response
 
         return AsyncItemPaged(get_next, extract_data)
-
-    list_private_endpoint_connections.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/diskAccesses/{diskAccessName}/privateEndpointConnections"
-    }
 
 
 class DiskEncryptionSetsOperations:
@@ -2654,10 +2380,10 @@ class DiskEncryptionSetsOperations:
         self,
         resource_group_name: str,
         disk_encryption_set_name: str,
-        disk_encryption_set: Union[_models.DiskEncryptionSet, IO],
+        disk_encryption_set: Union[_models.DiskEncryptionSet, IO[bytes]],
         **kwargs: Any
-    ) -> _models.DiskEncryptionSet:
-        error_map = {
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -2670,7 +2396,7 @@ class DiskEncryptionSetsOperations:
 
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2023-04-02"))
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-        cls: ClsType[_models.DiskEncryptionSet] = kwargs.pop("cls", None)
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
 
         content_type = content_type or "application/json"
         _json = None
@@ -2680,7 +2406,7 @@ class DiskEncryptionSetsOperations:
         else:
             _json = self._serialize.body(disk_encryption_set, "DiskEncryptionSet")
 
-        request = build_disk_encryption_sets_create_or_update_request(
+        _request = build_disk_encryption_sets_create_or_update_request(
             resource_group_name=resource_group_name,
             disk_encryption_set_name=disk_encryption_set_name,
             subscription_id=self._config.subscription_id,
@@ -2688,38 +2414,33 @@ class DiskEncryptionSetsOperations:
             content_type=content_type,
             json=_json,
             content=_content,
-            template_url=self._create_or_update_initial.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
-        _stream = False
+        _stream = True
         pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
 
         if response.status_code not in [200, 202]:
+            await response.read()  # Load the body in memory and close the socket
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
         if response.status_code == 200:
-            deserialized = self._deserialize("DiskEncryptionSet", pipeline_response)
+            deserialized = response.stream_download(self._client._pipeline)
 
         if response.status_code == 202:
-            deserialized = self._deserialize("DiskEncryptionSet", pipeline_response)
+            deserialized = response.stream_download(self._client._pipeline)
 
         if cls:
             return cls(pipeline_response, deserialized, {})  # type: ignore
 
         return deserialized  # type: ignore
-
-    _create_or_update_initial.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/diskEncryptionSets/{diskEncryptionSetName}"
-    }
 
     @overload
     async def begin_create_or_update(
@@ -2745,14 +2466,6 @@ class DiskEncryptionSetsOperations:
         :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of AsyncLROPoller that returns either DiskEncryptionSet or the result of
          cls(response)
         :rtype:
@@ -2765,7 +2478,7 @@ class DiskEncryptionSetsOperations:
         self,
         resource_group_name: str,
         disk_encryption_set_name: str,
-        disk_encryption_set: IO,
+        disk_encryption_set: IO[bytes],
         *,
         content_type: str = "application/json",
         **kwargs: Any
@@ -2780,18 +2493,10 @@ class DiskEncryptionSetsOperations:
         :type disk_encryption_set_name: str
         :param disk_encryption_set: disk encryption set object supplied in the body of the Put disk
          encryption set operation. Required.
-        :type disk_encryption_set: IO
+        :type disk_encryption_set: IO[bytes]
         :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of AsyncLROPoller that returns either DiskEncryptionSet or the result of
          cls(response)
         :rtype:
@@ -2804,7 +2509,7 @@ class DiskEncryptionSetsOperations:
         self,
         resource_group_name: str,
         disk_encryption_set_name: str,
-        disk_encryption_set: Union[_models.DiskEncryptionSet, IO],
+        disk_encryption_set: Union[_models.DiskEncryptionSet, IO[bytes]],
         **kwargs: Any
     ) -> AsyncLROPoller[_models.DiskEncryptionSet]:
         """Creates or updates a disk encryption set.
@@ -2816,19 +2521,9 @@ class DiskEncryptionSetsOperations:
          name are a-z, A-Z, 0-9, _ and -. The maximum name length is 80 characters. Required.
         :type disk_encryption_set_name: str
         :param disk_encryption_set: disk encryption set object supplied in the body of the Put disk
-         encryption set operation. Is either a DiskEncryptionSet type or a IO type. Required.
-        :type disk_encryption_set: ~azure.mgmt.compute.v2023_04_02.models.DiskEncryptionSet or IO
-        :keyword content_type: Body Parameter content-type. Known values are: 'application/json'.
-         Default value is None.
-        :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
+         encryption set operation. Is either a DiskEncryptionSet type or a IO[bytes] type. Required.
+        :type disk_encryption_set: ~azure.mgmt.compute.v2023_04_02.models.DiskEncryptionSet or
+         IO[bytes]
         :return: An instance of AsyncLROPoller that returns either DiskEncryptionSet or the result of
          cls(response)
         :rtype:
@@ -2856,12 +2551,13 @@ class DiskEncryptionSetsOperations:
                 params=_params,
                 **kwargs
             )
+            await raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):
-            deserialized = self._deserialize("DiskEncryptionSet", pipeline_response)
+            deserialized = self._deserialize("DiskEncryptionSet", pipeline_response.http_response)
             if cls:
-                return cls(pipeline_response, deserialized, {})
+                return cls(pipeline_response, deserialized, {})  # type: ignore
             return deserialized
 
         if polling is True:
@@ -2871,26 +2567,24 @@ class DiskEncryptionSetsOperations:
         else:
             polling_method = polling
         if cont_token:
-            return AsyncLROPoller.from_continuation_token(
+            return AsyncLROPoller[_models.DiskEncryptionSet].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return AsyncLROPoller(self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
-
-    begin_create_or_update.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/diskEncryptionSets/{diskEncryptionSetName}"
-    }
+        return AsyncLROPoller[_models.DiskEncryptionSet](
+            self._client, raw_result, get_long_running_output, polling_method  # type: ignore
+        )
 
     async def _update_initial(
         self,
         resource_group_name: str,
         disk_encryption_set_name: str,
-        disk_encryption_set: Union[_models.DiskEncryptionSetUpdate, IO],
+        disk_encryption_set: Union[_models.DiskEncryptionSetUpdate, IO[bytes]],
         **kwargs: Any
-    ) -> _models.DiskEncryptionSet:
-        error_map = {
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -2903,7 +2597,7 @@ class DiskEncryptionSetsOperations:
 
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2023-04-02"))
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-        cls: ClsType[_models.DiskEncryptionSet] = kwargs.pop("cls", None)
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
 
         content_type = content_type or "application/json"
         _json = None
@@ -2913,7 +2607,7 @@ class DiskEncryptionSetsOperations:
         else:
             _json = self._serialize.body(disk_encryption_set, "DiskEncryptionSetUpdate")
 
-        request = build_disk_encryption_sets_update_request(
+        _request = build_disk_encryption_sets_update_request(
             resource_group_name=resource_group_name,
             disk_encryption_set_name=disk_encryption_set_name,
             subscription_id=self._config.subscription_id,
@@ -2921,38 +2615,33 @@ class DiskEncryptionSetsOperations:
             content_type=content_type,
             json=_json,
             content=_content,
-            template_url=self._update_initial.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
-        _stream = False
+        _stream = True
         pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
 
         if response.status_code not in [200, 202]:
+            await response.read()  # Load the body in memory and close the socket
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
         if response.status_code == 200:
-            deserialized = self._deserialize("DiskEncryptionSet", pipeline_response)
+            deserialized = response.stream_download(self._client._pipeline)
 
         if response.status_code == 202:
-            deserialized = self._deserialize("DiskEncryptionSet", pipeline_response)
+            deserialized = response.stream_download(self._client._pipeline)
 
         if cls:
             return cls(pipeline_response, deserialized, {})  # type: ignore
 
         return deserialized  # type: ignore
-
-    _update_initial.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/diskEncryptionSets/{diskEncryptionSetName}"
-    }
 
     @overload
     async def begin_update(
@@ -2978,14 +2667,6 @@ class DiskEncryptionSetsOperations:
         :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of AsyncLROPoller that returns either DiskEncryptionSet or the result of
          cls(response)
         :rtype:
@@ -2998,7 +2679,7 @@ class DiskEncryptionSetsOperations:
         self,
         resource_group_name: str,
         disk_encryption_set_name: str,
-        disk_encryption_set: IO,
+        disk_encryption_set: IO[bytes],
         *,
         content_type: str = "application/json",
         **kwargs: Any
@@ -3013,18 +2694,10 @@ class DiskEncryptionSetsOperations:
         :type disk_encryption_set_name: str
         :param disk_encryption_set: disk encryption set object supplied in the body of the Patch disk
          encryption set operation. Required.
-        :type disk_encryption_set: IO
+        :type disk_encryption_set: IO[bytes]
         :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of AsyncLROPoller that returns either DiskEncryptionSet or the result of
          cls(response)
         :rtype:
@@ -3037,7 +2710,7 @@ class DiskEncryptionSetsOperations:
         self,
         resource_group_name: str,
         disk_encryption_set_name: str,
-        disk_encryption_set: Union[_models.DiskEncryptionSetUpdate, IO],
+        disk_encryption_set: Union[_models.DiskEncryptionSetUpdate, IO[bytes]],
         **kwargs: Any
     ) -> AsyncLROPoller[_models.DiskEncryptionSet]:
         """Updates (patches) a disk encryption set.
@@ -3049,19 +2722,10 @@ class DiskEncryptionSetsOperations:
          name are a-z, A-Z, 0-9, _ and -. The maximum name length is 80 characters. Required.
         :type disk_encryption_set_name: str
         :param disk_encryption_set: disk encryption set object supplied in the body of the Patch disk
-         encryption set operation. Is either a DiskEncryptionSetUpdate type or a IO type. Required.
-        :type disk_encryption_set: ~azure.mgmt.compute.v2023_04_02.models.DiskEncryptionSetUpdate or IO
-        :keyword content_type: Body Parameter content-type. Known values are: 'application/json'.
-         Default value is None.
-        :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
+         encryption set operation. Is either a DiskEncryptionSetUpdate type or a IO[bytes] type.
+         Required.
+        :type disk_encryption_set: ~azure.mgmt.compute.v2023_04_02.models.DiskEncryptionSetUpdate or
+         IO[bytes]
         :return: An instance of AsyncLROPoller that returns either DiskEncryptionSet or the result of
          cls(response)
         :rtype:
@@ -3089,12 +2753,13 @@ class DiskEncryptionSetsOperations:
                 params=_params,
                 **kwargs
             )
+            await raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):
-            deserialized = self._deserialize("DiskEncryptionSet", pipeline_response)
+            deserialized = self._deserialize("DiskEncryptionSet", pipeline_response.http_response)
             if cls:
-                return cls(pipeline_response, deserialized, {})
+                return cls(pipeline_response, deserialized, {})  # type: ignore
             return deserialized
 
         if polling is True:
@@ -3104,17 +2769,15 @@ class DiskEncryptionSetsOperations:
         else:
             polling_method = polling
         if cont_token:
-            return AsyncLROPoller.from_continuation_token(
+            return AsyncLROPoller[_models.DiskEncryptionSet].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return AsyncLROPoller(self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
-
-    begin_update.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/diskEncryptionSets/{diskEncryptionSetName}"
-    }
+        return AsyncLROPoller[_models.DiskEncryptionSet](
+            self._client, raw_result, get_long_running_output, polling_method  # type: ignore
+        )
 
     @distributed_trace_async
     async def get(
@@ -3128,12 +2791,11 @@ class DiskEncryptionSetsOperations:
          name can't be changed after the disk encryption set is created. Supported characters for the
          name are a-z, A-Z, 0-9, _ and -. The maximum name length is 80 characters. Required.
         :type disk_encryption_set_name: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: DiskEncryptionSet or the result of cls(response)
         :rtype: ~azure.mgmt.compute.v2023_04_02.models.DiskEncryptionSet
         :raises ~azure.core.exceptions.HttpResponseError:
         """
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -3147,21 +2809,19 @@ class DiskEncryptionSetsOperations:
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2023-04-02"))
         cls: ClsType[_models.DiskEncryptionSet] = kwargs.pop("cls", None)
 
-        request = build_disk_encryption_sets_get_request(
+        _request = build_disk_encryption_sets_get_request(
             resource_group_name=resource_group_name,
             disk_encryption_set_name=disk_encryption_set_name,
             subscription_id=self._config.subscription_id,
             api_version=api_version,
-            template_url=self.get.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
         _stream = False
         pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
@@ -3170,21 +2830,17 @@ class DiskEncryptionSetsOperations:
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
-        deserialized = self._deserialize("DiskEncryptionSet", pipeline_response)
+        deserialized = self._deserialize("DiskEncryptionSet", pipeline_response.http_response)
 
         if cls:
-            return cls(pipeline_response, deserialized, {})
+            return cls(pipeline_response, deserialized, {})  # type: ignore
 
-        return deserialized
+        return deserialized  # type: ignore
 
-    get.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/diskEncryptionSets/{diskEncryptionSetName}"
-    }
-
-    async def _delete_initial(  # pylint: disable=inconsistent-return-statements
+    async def _delete_initial(
         self, resource_group_name: str, disk_encryption_set_name: str, **kwargs: Any
-    ) -> None:
-        error_map = {
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -3196,37 +2852,43 @@ class DiskEncryptionSetsOperations:
         _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
 
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2023-04-02"))
-        cls: ClsType[None] = kwargs.pop("cls", None)
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
 
-        request = build_disk_encryption_sets_delete_request(
+        _request = build_disk_encryption_sets_delete_request(
             resource_group_name=resource_group_name,
             disk_encryption_set_name=disk_encryption_set_name,
             subscription_id=self._config.subscription_id,
             api_version=api_version,
-            template_url=self._delete_initial.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
-        _stream = False
+        _stream = True
         pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
 
         if response.status_code not in [200, 202, 204]:
+            await response.read()  # Load the body in memory and close the socket
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
-        if cls:
-            return cls(pipeline_response, None, {})
+        if response.status_code == 200:
+            deserialized = response.stream_download(self._client._pipeline)
 
-    _delete_initial.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/diskEncryptionSets/{diskEncryptionSetName}"
-    }
+        if response.status_code == 202:
+            deserialized = response.stream_download(self._client._pipeline)
+
+        if response.status_code == 204:
+            deserialized = response.stream_download(self._client._pipeline)
+
+        if cls:
+            return cls(pipeline_response, deserialized, {})  # type: ignore
+
+        return deserialized  # type: ignore
 
     @distributed_trace_async
     async def begin_delete(
@@ -3240,14 +2902,6 @@ class DiskEncryptionSetsOperations:
          name can't be changed after the disk encryption set is created. Supported characters for the
          name are a-z, A-Z, 0-9, _ and -. The maximum name length is 80 characters. Required.
         :type disk_encryption_set_name: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of AsyncLROPoller that returns either None or the result of cls(response)
         :rtype: ~azure.core.polling.AsyncLROPoller[None]
         :raises ~azure.core.exceptions.HttpResponseError:
@@ -3261,7 +2915,7 @@ class DiskEncryptionSetsOperations:
         lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
         cont_token: Optional[str] = kwargs.pop("continuation_token", None)
         if cont_token is None:
-            raw_result = await self._delete_initial(  # type: ignore
+            raw_result = await self._delete_initial(
                 resource_group_name=resource_group_name,
                 disk_encryption_set_name=disk_encryption_set_name,
                 api_version=api_version,
@@ -3270,11 +2924,12 @@ class DiskEncryptionSetsOperations:
                 params=_params,
                 **kwargs
             )
+            await raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):  # pylint: disable=inconsistent-return-statements
             if cls:
-                return cls(pipeline_response, None, {})
+                return cls(pipeline_response, None, {})  # type: ignore
 
         if polling is True:
             polling_method: AsyncPollingMethod = cast(AsyncPollingMethod, AsyncARMPolling(lro_delay, **kwargs))
@@ -3283,17 +2938,13 @@ class DiskEncryptionSetsOperations:
         else:
             polling_method = polling
         if cont_token:
-            return AsyncLROPoller.from_continuation_token(
+            return AsyncLROPoller[None].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return AsyncLROPoller(self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
-
-    begin_delete.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/diskEncryptionSets/{diskEncryptionSetName}"
-    }
+        return AsyncLROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
 
     @distributed_trace
     def list_by_resource_group(
@@ -3303,7 +2954,6 @@ class DiskEncryptionSetsOperations:
 
         :param resource_group_name: The name of the resource group. Required.
         :type resource_group_name: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: An iterator like instance of either DiskEncryptionSet or the result of cls(response)
         :rtype:
          ~azure.core.async_paging.AsyncItemPaged[~azure.mgmt.compute.v2023_04_02.models.DiskEncryptionSet]
@@ -3315,7 +2965,7 @@ class DiskEncryptionSetsOperations:
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2023-04-02"))
         cls: ClsType[_models.DiskEncryptionSetList] = kwargs.pop("cls", None)
 
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -3326,16 +2976,14 @@ class DiskEncryptionSetsOperations:
         def prepare_request(next_link=None):
             if not next_link:
 
-                request = build_disk_encryption_sets_list_by_resource_group_request(
+                _request = build_disk_encryption_sets_list_by_resource_group_request(
                     resource_group_name=resource_group_name,
                     subscription_id=self._config.subscription_id,
                     api_version=api_version,
-                    template_url=self.list_by_resource_group.metadata["url"],
                     headers=_headers,
                     params=_params,
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
+                _request.url = self._client.format_url(_request.url)
 
             else:
                 # make call to next link with the client's api-version
@@ -3346,14 +2994,13 @@ class DiskEncryptionSetsOperations:
                         for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
                     }
                 )
-                _next_request_params["api-version"] = self._config.api_version
-                request = HttpRequest(
+                _next_request_params["api-version"] = self._api_version
+                _request = HttpRequest(
                     "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
-                request.method = "GET"
-            return request
+                _request.url = self._client.format_url(_request.url)
+                _request.method = "GET"
+            return _request
 
         async def extract_data(pipeline_response):
             deserialized = self._deserialize("DiskEncryptionSetList", pipeline_response)
@@ -3363,11 +3010,11 @@ class DiskEncryptionSetsOperations:
             return deserialized.next_link or None, AsyncList(list_of_elem)
 
         async def get_next(next_link=None):
-            request = prepare_request(next_link)
+            _request = prepare_request(next_link)
 
             _stream = False
             pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-                request, stream=_stream, **kwargs
+                _request, stream=_stream, **kwargs
             )
             response = pipeline_response.http_response
 
@@ -3378,16 +3025,11 @@ class DiskEncryptionSetsOperations:
             return pipeline_response
 
         return AsyncItemPaged(get_next, extract_data)
-
-    list_by_resource_group.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/diskEncryptionSets"
-    }
 
     @distributed_trace
     def list(self, **kwargs: Any) -> AsyncIterable["_models.DiskEncryptionSet"]:
         """Lists all the disk encryption sets under a subscription.
 
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: An iterator like instance of either DiskEncryptionSet or the result of cls(response)
         :rtype:
          ~azure.core.async_paging.AsyncItemPaged[~azure.mgmt.compute.v2023_04_02.models.DiskEncryptionSet]
@@ -3399,7 +3041,7 @@ class DiskEncryptionSetsOperations:
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2023-04-02"))
         cls: ClsType[_models.DiskEncryptionSetList] = kwargs.pop("cls", None)
 
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -3410,15 +3052,13 @@ class DiskEncryptionSetsOperations:
         def prepare_request(next_link=None):
             if not next_link:
 
-                request = build_disk_encryption_sets_list_request(
+                _request = build_disk_encryption_sets_list_request(
                     subscription_id=self._config.subscription_id,
                     api_version=api_version,
-                    template_url=self.list.metadata["url"],
                     headers=_headers,
                     params=_params,
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
+                _request.url = self._client.format_url(_request.url)
 
             else:
                 # make call to next link with the client's api-version
@@ -3429,14 +3069,13 @@ class DiskEncryptionSetsOperations:
                         for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
                     }
                 )
-                _next_request_params["api-version"] = self._config.api_version
-                request = HttpRequest(
+                _next_request_params["api-version"] = self._api_version
+                _request = HttpRequest(
                     "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
-                request.method = "GET"
-            return request
+                _request.url = self._client.format_url(_request.url)
+                _request.method = "GET"
+            return _request
 
         async def extract_data(pipeline_response):
             deserialized = self._deserialize("DiskEncryptionSetList", pipeline_response)
@@ -3446,11 +3085,11 @@ class DiskEncryptionSetsOperations:
             return deserialized.next_link or None, AsyncList(list_of_elem)
 
         async def get_next(next_link=None):
-            request = prepare_request(next_link)
+            _request = prepare_request(next_link)
 
             _stream = False
             pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-                request, stream=_stream, **kwargs
+                _request, stream=_stream, **kwargs
             )
             response = pipeline_response.http_response
 
@@ -3461,8 +3100,6 @@ class DiskEncryptionSetsOperations:
             return pipeline_response
 
         return AsyncItemPaged(get_next, extract_data)
-
-    list.metadata = {"url": "/subscriptions/{subscriptionId}/providers/Microsoft.Compute/diskEncryptionSets"}
 
     @distributed_trace
     def list_associated_resources(
@@ -3476,7 +3113,6 @@ class DiskEncryptionSetsOperations:
          name can't be changed after the disk encryption set is created. Supported characters for the
          name are a-z, A-Z, 0-9, _ and -. The maximum name length is 80 characters. Required.
         :type disk_encryption_set_name: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: An iterator like instance of either str or the result of cls(response)
         :rtype: ~azure.core.async_paging.AsyncItemPaged[str]
         :raises ~azure.core.exceptions.HttpResponseError:
@@ -3487,7 +3123,7 @@ class DiskEncryptionSetsOperations:
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2023-04-02"))
         cls: ClsType[_models.ResourceUriList] = kwargs.pop("cls", None)
 
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -3498,17 +3134,15 @@ class DiskEncryptionSetsOperations:
         def prepare_request(next_link=None):
             if not next_link:
 
-                request = build_disk_encryption_sets_list_associated_resources_request(
+                _request = build_disk_encryption_sets_list_associated_resources_request(
                     resource_group_name=resource_group_name,
                     disk_encryption_set_name=disk_encryption_set_name,
                     subscription_id=self._config.subscription_id,
                     api_version=api_version,
-                    template_url=self.list_associated_resources.metadata["url"],
                     headers=_headers,
                     params=_params,
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
+                _request.url = self._client.format_url(_request.url)
 
             else:
                 # make call to next link with the client's api-version
@@ -3519,14 +3153,13 @@ class DiskEncryptionSetsOperations:
                         for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
                     }
                 )
-                _next_request_params["api-version"] = self._config.api_version
-                request = HttpRequest(
+                _next_request_params["api-version"] = self._api_version
+                _request = HttpRequest(
                     "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
-                request.method = "GET"
-            return request
+                _request.url = self._client.format_url(_request.url)
+                _request.method = "GET"
+            return _request
 
         async def extract_data(pipeline_response):
             deserialized = self._deserialize("ResourceUriList", pipeline_response)
@@ -3536,11 +3169,11 @@ class DiskEncryptionSetsOperations:
             return deserialized.next_link or None, AsyncList(list_of_elem)
 
         async def get_next(next_link=None):
-            request = prepare_request(next_link)
+            _request = prepare_request(next_link)
 
             _stream = False
             pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-                request, stream=_stream, **kwargs
+                _request, stream=_stream, **kwargs
             )
             response = pipeline_response.http_response
 
@@ -3551,10 +3184,6 @@ class DiskEncryptionSetsOperations:
             return pipeline_response
 
         return AsyncItemPaged(get_next, extract_data)
-
-    list_associated_resources.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/diskEncryptionSets/{diskEncryptionSetName}/associatedResources"
-    }
 
 
 class DiskRestorePointOperations:
@@ -3598,12 +3227,11 @@ class DiskRestorePointOperations:
         :type vm_restore_point_name: str
         :param disk_restore_point_name: The name of the disk restore point created. Required.
         :type disk_restore_point_name: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: DiskRestorePoint or the result of cls(response)
         :rtype: ~azure.mgmt.compute.v2023_04_02.models.DiskRestorePoint
         :raises ~azure.core.exceptions.HttpResponseError:
         """
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -3617,23 +3245,21 @@ class DiskRestorePointOperations:
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2023-04-02"))
         cls: ClsType[_models.DiskRestorePoint] = kwargs.pop("cls", None)
 
-        request = build_disk_restore_point_get_request(
+        _request = build_disk_restore_point_get_request(
             resource_group_name=resource_group_name,
             restore_point_collection_name=restore_point_collection_name,
             vm_restore_point_name=vm_restore_point_name,
             disk_restore_point_name=disk_restore_point_name,
             subscription_id=self._config.subscription_id,
             api_version=api_version,
-            template_url=self.get.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
         _stream = False
         pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
@@ -3642,16 +3268,12 @@ class DiskRestorePointOperations:
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
-        deserialized = self._deserialize("DiskRestorePoint", pipeline_response)
+        deserialized = self._deserialize("DiskRestorePoint", pipeline_response.http_response)
 
         if cls:
-            return cls(pipeline_response, deserialized, {})
+            return cls(pipeline_response, deserialized, {})  # type: ignore
 
-        return deserialized
-
-    get.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/restorePointCollections/{restorePointCollectionName}/restorePoints/{vmRestorePointName}/diskRestorePoints/{diskRestorePointName}"
-    }
+        return deserialized  # type: ignore
 
     @distributed_trace
     def list_by_restore_point(
@@ -3667,7 +3289,6 @@ class DiskRestorePointOperations:
         :param vm_restore_point_name: The name of the vm restore point that the disk disk restore point
          belongs. Required.
         :type vm_restore_point_name: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: An iterator like instance of either DiskRestorePoint or the result of cls(response)
         :rtype:
          ~azure.core.async_paging.AsyncItemPaged[~azure.mgmt.compute.v2023_04_02.models.DiskRestorePoint]
@@ -3679,7 +3300,7 @@ class DiskRestorePointOperations:
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2023-04-02"))
         cls: ClsType[_models.DiskRestorePointList] = kwargs.pop("cls", None)
 
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -3690,18 +3311,16 @@ class DiskRestorePointOperations:
         def prepare_request(next_link=None):
             if not next_link:
 
-                request = build_disk_restore_point_list_by_restore_point_request(
+                _request = build_disk_restore_point_list_by_restore_point_request(
                     resource_group_name=resource_group_name,
                     restore_point_collection_name=restore_point_collection_name,
                     vm_restore_point_name=vm_restore_point_name,
                     subscription_id=self._config.subscription_id,
                     api_version=api_version,
-                    template_url=self.list_by_restore_point.metadata["url"],
                     headers=_headers,
                     params=_params,
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
+                _request.url = self._client.format_url(_request.url)
 
             else:
                 # make call to next link with the client's api-version
@@ -3712,14 +3331,13 @@ class DiskRestorePointOperations:
                         for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
                     }
                 )
-                _next_request_params["api-version"] = self._config.api_version
-                request = HttpRequest(
+                _next_request_params["api-version"] = self._api_version
+                _request = HttpRequest(
                     "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
-                request.method = "GET"
-            return request
+                _request.url = self._client.format_url(_request.url)
+                _request.method = "GET"
+            return _request
 
         async def extract_data(pipeline_response):
             deserialized = self._deserialize("DiskRestorePointList", pipeline_response)
@@ -3729,11 +3347,11 @@ class DiskRestorePointOperations:
             return deserialized.next_link or None, AsyncList(list_of_elem)
 
         async def get_next(next_link=None):
-            request = prepare_request(next_link)
+            _request = prepare_request(next_link)
 
             _stream = False
             pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-                request, stream=_stream, **kwargs
+                _request, stream=_stream, **kwargs
             )
             response = pipeline_response.http_response
 
@@ -3745,20 +3363,16 @@ class DiskRestorePointOperations:
 
         return AsyncItemPaged(get_next, extract_data)
 
-    list_by_restore_point.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/restorePointCollections/{restorePointCollectionName}/restorePoints/{vmRestorePointName}/diskRestorePoints"
-    }
-
     async def _grant_access_initial(
         self,
         resource_group_name: str,
         restore_point_collection_name: str,
         vm_restore_point_name: str,
         disk_restore_point_name: str,
-        grant_access_data: Union[_models.GrantAccessData, IO],
+        grant_access_data: Union[_models.GrantAccessData, IO[bytes]],
         **kwargs: Any
-    ) -> Optional[_models.AccessUri]:
-        error_map = {
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -3771,7 +3385,7 @@ class DiskRestorePointOperations:
 
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2023-04-02"))
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-        cls: ClsType[Optional[_models.AccessUri]] = kwargs.pop("cls", None)
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
 
         content_type = content_type or "application/json"
         _json = None
@@ -3781,7 +3395,7 @@ class DiskRestorePointOperations:
         else:
             _json = self._serialize.body(grant_access_data, "GrantAccessData")
 
-        request = build_disk_restore_point_grant_access_request(
+        _request = build_disk_restore_point_grant_access_request(
             resource_group_name=resource_group_name,
             restore_point_collection_name=restore_point_collection_name,
             vm_restore_point_name=vm_restore_point_name,
@@ -3791,36 +3405,33 @@ class DiskRestorePointOperations:
             content_type=content_type,
             json=_json,
             content=_content,
-            template_url=self._grant_access_initial.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
-        _stream = False
+        _stream = True
         pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
 
         if response.status_code not in [200, 202]:
+            await response.read()  # Load the body in memory and close the socket
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
-        deserialized = None
         if response.status_code == 200:
-            deserialized = self._deserialize("AccessUri", pipeline_response)
+            deserialized = response.stream_download(self._client._pipeline)
+
+        if response.status_code == 202:
+            deserialized = response.stream_download(self._client._pipeline)
 
         if cls:
-            return cls(pipeline_response, deserialized, {})
+            return cls(pipeline_response, deserialized, {})  # type: ignore
 
-        return deserialized
-
-    _grant_access_initial.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/restorePointCollections/{restorePointCollectionName}/restorePoints/{vmRestorePointName}/diskRestorePoints/{diskRestorePointName}/beginGetAccess"
-    }
+        return deserialized  # type: ignore
 
     @overload
     async def begin_grant_access(
@@ -3852,14 +3463,6 @@ class DiskRestorePointOperations:
         :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of AsyncLROPoller that returns either AccessUri or the result of
          cls(response)
         :rtype: ~azure.core.polling.AsyncLROPoller[~azure.mgmt.compute.v2023_04_02.models.AccessUri]
@@ -3873,7 +3476,7 @@ class DiskRestorePointOperations:
         restore_point_collection_name: str,
         vm_restore_point_name: str,
         disk_restore_point_name: str,
-        grant_access_data: IO,
+        grant_access_data: IO[bytes],
         *,
         content_type: str = "application/json",
         **kwargs: Any
@@ -3892,18 +3495,10 @@ class DiskRestorePointOperations:
         :type disk_restore_point_name: str
         :param grant_access_data: Access data object supplied in the body of the get disk access
          operation. Required.
-        :type grant_access_data: IO
+        :type grant_access_data: IO[bytes]
         :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of AsyncLROPoller that returns either AccessUri or the result of
          cls(response)
         :rtype: ~azure.core.polling.AsyncLROPoller[~azure.mgmt.compute.v2023_04_02.models.AccessUri]
@@ -3917,7 +3512,7 @@ class DiskRestorePointOperations:
         restore_point_collection_name: str,
         vm_restore_point_name: str,
         disk_restore_point_name: str,
-        grant_access_data: Union[_models.GrantAccessData, IO],
+        grant_access_data: Union[_models.GrantAccessData, IO[bytes]],
         **kwargs: Any
     ) -> AsyncLROPoller[_models.AccessUri]:
         """Grants access to a diskRestorePoint.
@@ -3933,19 +3528,8 @@ class DiskRestorePointOperations:
         :param disk_restore_point_name: The name of the disk restore point created. Required.
         :type disk_restore_point_name: str
         :param grant_access_data: Access data object supplied in the body of the get disk access
-         operation. Is either a GrantAccessData type or a IO type. Required.
-        :type grant_access_data: ~azure.mgmt.compute.v2023_04_02.models.GrantAccessData or IO
-        :keyword content_type: Body Parameter content-type. Known values are: 'application/json'.
-         Default value is None.
-        :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
+         operation. Is either a GrantAccessData type or a IO[bytes] type. Required.
+        :type grant_access_data: ~azure.mgmt.compute.v2023_04_02.models.GrantAccessData or IO[bytes]
         :return: An instance of AsyncLROPoller that returns either AccessUri or the result of
          cls(response)
         :rtype: ~azure.core.polling.AsyncLROPoller[~azure.mgmt.compute.v2023_04_02.models.AccessUri]
@@ -3974,12 +3558,13 @@ class DiskRestorePointOperations:
                 params=_params,
                 **kwargs
             )
+            await raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):
-            deserialized = self._deserialize("AccessUri", pipeline_response)
+            deserialized = self._deserialize("AccessUri", pipeline_response.http_response)
             if cls:
-                return cls(pipeline_response, deserialized, {})
+                return cls(pipeline_response, deserialized, {})  # type: ignore
             return deserialized
 
         if polling is True:
@@ -3991,27 +3576,25 @@ class DiskRestorePointOperations:
         else:
             polling_method = polling
         if cont_token:
-            return AsyncLROPoller.from_continuation_token(
+            return AsyncLROPoller[_models.AccessUri].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return AsyncLROPoller(self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+        return AsyncLROPoller[_models.AccessUri](
+            self._client, raw_result, get_long_running_output, polling_method  # type: ignore
+        )
 
-    begin_grant_access.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/restorePointCollections/{restorePointCollectionName}/restorePoints/{vmRestorePointName}/diskRestorePoints/{diskRestorePointName}/beginGetAccess"
-    }
-
-    async def _revoke_access_initial(  # pylint: disable=inconsistent-return-statements
+    async def _revoke_access_initial(
         self,
         resource_group_name: str,
         restore_point_collection_name: str,
         vm_restore_point_name: str,
         disk_restore_point_name: str,
         **kwargs: Any
-    ) -> None:
-        error_map = {
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -4023,39 +3606,42 @@ class DiskRestorePointOperations:
         _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
 
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2023-04-02"))
-        cls: ClsType[None] = kwargs.pop("cls", None)
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
 
-        request = build_disk_restore_point_revoke_access_request(
+        _request = build_disk_restore_point_revoke_access_request(
             resource_group_name=resource_group_name,
             restore_point_collection_name=restore_point_collection_name,
             vm_restore_point_name=vm_restore_point_name,
             disk_restore_point_name=disk_restore_point_name,
             subscription_id=self._config.subscription_id,
             api_version=api_version,
-            template_url=self._revoke_access_initial.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
-        _stream = False
+        _stream = True
         pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
 
         if response.status_code not in [200, 202]:
+            await response.read()  # Load the body in memory and close the socket
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
-        if cls:
-            return cls(pipeline_response, None, {})
+        if response.status_code == 200:
+            deserialized = response.stream_download(self._client._pipeline)
 
-    _revoke_access_initial.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/restorePointCollections/{restorePointCollectionName}/restorePoints/{vmRestorePointName}/diskRestorePoints/{diskRestorePointName}/endGetAccess"
-    }
+        if response.status_code == 202:
+            deserialized = response.stream_download(self._client._pipeline)
+
+        if cls:
+            return cls(pipeline_response, deserialized, {})  # type: ignore
+
+        return deserialized  # type: ignore
 
     @distributed_trace_async
     async def begin_revoke_access(
@@ -4078,14 +3664,6 @@ class DiskRestorePointOperations:
         :type vm_restore_point_name: str
         :param disk_restore_point_name: The name of the disk restore point created. Required.
         :type disk_restore_point_name: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of AsyncLROPoller that returns either None or the result of cls(response)
         :rtype: ~azure.core.polling.AsyncLROPoller[None]
         :raises ~azure.core.exceptions.HttpResponseError:
@@ -4099,7 +3677,7 @@ class DiskRestorePointOperations:
         lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
         cont_token: Optional[str] = kwargs.pop("continuation_token", None)
         if cont_token is None:
-            raw_result = await self._revoke_access_initial(  # type: ignore
+            raw_result = await self._revoke_access_initial(
                 resource_group_name=resource_group_name,
                 restore_point_collection_name=restore_point_collection_name,
                 vm_restore_point_name=vm_restore_point_name,
@@ -4110,11 +3688,12 @@ class DiskRestorePointOperations:
                 params=_params,
                 **kwargs
             )
+            await raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):  # pylint: disable=inconsistent-return-statements
             if cls:
-                return cls(pipeline_response, None, {})
+                return cls(pipeline_response, None, {})  # type: ignore
 
         if polling is True:
             polling_method: AsyncPollingMethod = cast(
@@ -4125,17 +3704,13 @@ class DiskRestorePointOperations:
         else:
             polling_method = polling
         if cont_token:
-            return AsyncLROPoller.from_continuation_token(
+            return AsyncLROPoller[None].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return AsyncLROPoller(self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
-
-    begin_revoke_access.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/restorePointCollections/{restorePointCollectionName}/restorePoints/{vmRestorePointName}/diskRestorePoints/{diskRestorePointName}/endGetAccess"
-    }
+        return AsyncLROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
 
 
 class SnapshotsOperations:
@@ -4159,9 +3734,9 @@ class SnapshotsOperations:
         self._api_version = input_args.pop(0) if input_args else kwargs.pop("api_version")
 
     async def _create_or_update_initial(
-        self, resource_group_name: str, snapshot_name: str, snapshot: Union[_models.Snapshot, IO], **kwargs: Any
-    ) -> _models.Snapshot:
-        error_map = {
+        self, resource_group_name: str, snapshot_name: str, snapshot: Union[_models.Snapshot, IO[bytes]], **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -4174,7 +3749,7 @@ class SnapshotsOperations:
 
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2023-04-02"))
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-        cls: ClsType[_models.Snapshot] = kwargs.pop("cls", None)
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
 
         content_type = content_type or "application/json"
         _json = None
@@ -4184,7 +3759,7 @@ class SnapshotsOperations:
         else:
             _json = self._serialize.body(snapshot, "Snapshot")
 
-        request = build_snapshots_create_or_update_request(
+        _request = build_snapshots_create_or_update_request(
             resource_group_name=resource_group_name,
             snapshot_name=snapshot_name,
             subscription_id=self._config.subscription_id,
@@ -4192,38 +3767,33 @@ class SnapshotsOperations:
             content_type=content_type,
             json=_json,
             content=_content,
-            template_url=self._create_or_update_initial.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
-        _stream = False
+        _stream = True
         pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
 
         if response.status_code not in [200, 202]:
+            await response.read()  # Load the body in memory and close the socket
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
         if response.status_code == 200:
-            deserialized = self._deserialize("Snapshot", pipeline_response)
+            deserialized = response.stream_download(self._client._pipeline)
 
         if response.status_code == 202:
-            deserialized = self._deserialize("Snapshot", pipeline_response)
+            deserialized = response.stream_download(self._client._pipeline)
 
         if cls:
             return cls(pipeline_response, deserialized, {})  # type: ignore
 
         return deserialized  # type: ignore
-
-    _create_or_update_initial.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/snapshots/{snapshotName}"
-    }
 
     @overload
     async def begin_create_or_update(
@@ -4248,14 +3818,6 @@ class SnapshotsOperations:
         :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of AsyncLROPoller that returns either Snapshot or the result of
          cls(response)
         :rtype: ~azure.core.polling.AsyncLROPoller[~azure.mgmt.compute.v2023_04_02.models.Snapshot]
@@ -4267,7 +3829,7 @@ class SnapshotsOperations:
         self,
         resource_group_name: str,
         snapshot_name: str,
-        snapshot: IO,
+        snapshot: IO[bytes],
         *,
         content_type: str = "application/json",
         **kwargs: Any
@@ -4281,18 +3843,10 @@ class SnapshotsOperations:
          The max name length is 80 characters. Required.
         :type snapshot_name: str
         :param snapshot: Snapshot object supplied in the body of the Put disk operation. Required.
-        :type snapshot: IO
+        :type snapshot: IO[bytes]
         :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of AsyncLROPoller that returns either Snapshot or the result of
          cls(response)
         :rtype: ~azure.core.polling.AsyncLROPoller[~azure.mgmt.compute.v2023_04_02.models.Snapshot]
@@ -4301,7 +3855,7 @@ class SnapshotsOperations:
 
     @distributed_trace_async
     async def begin_create_or_update(
-        self, resource_group_name: str, snapshot_name: str, snapshot: Union[_models.Snapshot, IO], **kwargs: Any
+        self, resource_group_name: str, snapshot_name: str, snapshot: Union[_models.Snapshot, IO[bytes]], **kwargs: Any
     ) -> AsyncLROPoller[_models.Snapshot]:
         """Creates or updates a snapshot.
 
@@ -4312,19 +3866,8 @@ class SnapshotsOperations:
          The max name length is 80 characters. Required.
         :type snapshot_name: str
         :param snapshot: Snapshot object supplied in the body of the Put disk operation. Is either a
-         Snapshot type or a IO type. Required.
-        :type snapshot: ~azure.mgmt.compute.v2023_04_02.models.Snapshot or IO
-        :keyword content_type: Body Parameter content-type. Known values are: 'application/json'.
-         Default value is None.
-        :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
+         Snapshot type or a IO[bytes] type. Required.
+        :type snapshot: ~azure.mgmt.compute.v2023_04_02.models.Snapshot or IO[bytes]
         :return: An instance of AsyncLROPoller that returns either Snapshot or the result of
          cls(response)
         :rtype: ~azure.core.polling.AsyncLROPoller[~azure.mgmt.compute.v2023_04_02.models.Snapshot]
@@ -4351,12 +3894,13 @@ class SnapshotsOperations:
                 params=_params,
                 **kwargs
             )
+            await raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):
-            deserialized = self._deserialize("Snapshot", pipeline_response)
+            deserialized = self._deserialize("Snapshot", pipeline_response.http_response)
             if cls:
-                return cls(pipeline_response, deserialized, {})
+                return cls(pipeline_response, deserialized, {})  # type: ignore
             return deserialized
 
         if polling is True:
@@ -4366,22 +3910,24 @@ class SnapshotsOperations:
         else:
             polling_method = polling
         if cont_token:
-            return AsyncLROPoller.from_continuation_token(
+            return AsyncLROPoller[_models.Snapshot].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return AsyncLROPoller(self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
-
-    begin_create_or_update.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/snapshots/{snapshotName}"
-    }
+        return AsyncLROPoller[_models.Snapshot](
+            self._client, raw_result, get_long_running_output, polling_method  # type: ignore
+        )
 
     async def _update_initial(
-        self, resource_group_name: str, snapshot_name: str, snapshot: Union[_models.SnapshotUpdate, IO], **kwargs: Any
-    ) -> _models.Snapshot:
-        error_map = {
+        self,
+        resource_group_name: str,
+        snapshot_name: str,
+        snapshot: Union[_models.SnapshotUpdate, IO[bytes]],
+        **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -4394,7 +3940,7 @@ class SnapshotsOperations:
 
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2023-04-02"))
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-        cls: ClsType[_models.Snapshot] = kwargs.pop("cls", None)
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
 
         content_type = content_type or "application/json"
         _json = None
@@ -4404,7 +3950,7 @@ class SnapshotsOperations:
         else:
             _json = self._serialize.body(snapshot, "SnapshotUpdate")
 
-        request = build_snapshots_update_request(
+        _request = build_snapshots_update_request(
             resource_group_name=resource_group_name,
             snapshot_name=snapshot_name,
             subscription_id=self._config.subscription_id,
@@ -4412,38 +3958,33 @@ class SnapshotsOperations:
             content_type=content_type,
             json=_json,
             content=_content,
-            template_url=self._update_initial.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
-        _stream = False
+        _stream = True
         pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
 
         if response.status_code not in [200, 202]:
+            await response.read()  # Load the body in memory and close the socket
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
         if response.status_code == 200:
-            deserialized = self._deserialize("Snapshot", pipeline_response)
+            deserialized = response.stream_download(self._client._pipeline)
 
         if response.status_code == 202:
-            deserialized = self._deserialize("Snapshot", pipeline_response)
+            deserialized = response.stream_download(self._client._pipeline)
 
         if cls:
             return cls(pipeline_response, deserialized, {})  # type: ignore
 
         return deserialized  # type: ignore
-
-    _update_initial.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/snapshots/{snapshotName}"
-    }
 
     @overload
     async def begin_update(
@@ -4469,14 +4010,6 @@ class SnapshotsOperations:
         :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of AsyncLROPoller that returns either Snapshot or the result of
          cls(response)
         :rtype: ~azure.core.polling.AsyncLROPoller[~azure.mgmt.compute.v2023_04_02.models.Snapshot]
@@ -4488,7 +4021,7 @@ class SnapshotsOperations:
         self,
         resource_group_name: str,
         snapshot_name: str,
-        snapshot: IO,
+        snapshot: IO[bytes],
         *,
         content_type: str = "application/json",
         **kwargs: Any
@@ -4503,18 +4036,10 @@ class SnapshotsOperations:
         :type snapshot_name: str
         :param snapshot: Snapshot object supplied in the body of the Patch snapshot operation.
          Required.
-        :type snapshot: IO
+        :type snapshot: IO[bytes]
         :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of AsyncLROPoller that returns either Snapshot or the result of
          cls(response)
         :rtype: ~azure.core.polling.AsyncLROPoller[~azure.mgmt.compute.v2023_04_02.models.Snapshot]
@@ -4523,7 +4048,11 @@ class SnapshotsOperations:
 
     @distributed_trace_async
     async def begin_update(
-        self, resource_group_name: str, snapshot_name: str, snapshot: Union[_models.SnapshotUpdate, IO], **kwargs: Any
+        self,
+        resource_group_name: str,
+        snapshot_name: str,
+        snapshot: Union[_models.SnapshotUpdate, IO[bytes]],
+        **kwargs: Any
     ) -> AsyncLROPoller[_models.Snapshot]:
         """Updates (patches) a snapshot.
 
@@ -4534,19 +4063,8 @@ class SnapshotsOperations:
          The max name length is 80 characters. Required.
         :type snapshot_name: str
         :param snapshot: Snapshot object supplied in the body of the Patch snapshot operation. Is
-         either a SnapshotUpdate type or a IO type. Required.
-        :type snapshot: ~azure.mgmt.compute.v2023_04_02.models.SnapshotUpdate or IO
-        :keyword content_type: Body Parameter content-type. Known values are: 'application/json'.
-         Default value is None.
-        :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
+         either a SnapshotUpdate type or a IO[bytes] type. Required.
+        :type snapshot: ~azure.mgmt.compute.v2023_04_02.models.SnapshotUpdate or IO[bytes]
         :return: An instance of AsyncLROPoller that returns either Snapshot or the result of
          cls(response)
         :rtype: ~azure.core.polling.AsyncLROPoller[~azure.mgmt.compute.v2023_04_02.models.Snapshot]
@@ -4573,12 +4091,13 @@ class SnapshotsOperations:
                 params=_params,
                 **kwargs
             )
+            await raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):
-            deserialized = self._deserialize("Snapshot", pipeline_response)
+            deserialized = self._deserialize("Snapshot", pipeline_response.http_response)
             if cls:
-                return cls(pipeline_response, deserialized, {})
+                return cls(pipeline_response, deserialized, {})  # type: ignore
             return deserialized
 
         if polling is True:
@@ -4588,17 +4107,15 @@ class SnapshotsOperations:
         else:
             polling_method = polling
         if cont_token:
-            return AsyncLROPoller.from_continuation_token(
+            return AsyncLROPoller[_models.Snapshot].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return AsyncLROPoller(self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
-
-    begin_update.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/snapshots/{snapshotName}"
-    }
+        return AsyncLROPoller[_models.Snapshot](
+            self._client, raw_result, get_long_running_output, polling_method  # type: ignore
+        )
 
     @distributed_trace_async
     async def get(self, resource_group_name: str, snapshot_name: str, **kwargs: Any) -> _models.Snapshot:
@@ -4610,12 +4127,11 @@ class SnapshotsOperations:
          after the snapshot is created. Supported characters for the name are a-z, A-Z, 0-9, _ and -.
          The max name length is 80 characters. Required.
         :type snapshot_name: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: Snapshot or the result of cls(response)
         :rtype: ~azure.mgmt.compute.v2023_04_02.models.Snapshot
         :raises ~azure.core.exceptions.HttpResponseError:
         """
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -4629,21 +4145,19 @@ class SnapshotsOperations:
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2023-04-02"))
         cls: ClsType[_models.Snapshot] = kwargs.pop("cls", None)
 
-        request = build_snapshots_get_request(
+        _request = build_snapshots_get_request(
             resource_group_name=resource_group_name,
             snapshot_name=snapshot_name,
             subscription_id=self._config.subscription_id,
             api_version=api_version,
-            template_url=self.get.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
         _stream = False
         pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
@@ -4652,21 +4166,17 @@ class SnapshotsOperations:
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
-        deserialized = self._deserialize("Snapshot", pipeline_response)
+        deserialized = self._deserialize("Snapshot", pipeline_response.http_response)
 
         if cls:
-            return cls(pipeline_response, deserialized, {})
+            return cls(pipeline_response, deserialized, {})  # type: ignore
 
-        return deserialized
+        return deserialized  # type: ignore
 
-    get.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/snapshots/{snapshotName}"
-    }
-
-    async def _delete_initial(  # pylint: disable=inconsistent-return-statements
+    async def _delete_initial(
         self, resource_group_name: str, snapshot_name: str, **kwargs: Any
-    ) -> None:
-        error_map = {
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -4678,37 +4188,43 @@ class SnapshotsOperations:
         _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
 
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2023-04-02"))
-        cls: ClsType[None] = kwargs.pop("cls", None)
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
 
-        request = build_snapshots_delete_request(
+        _request = build_snapshots_delete_request(
             resource_group_name=resource_group_name,
             snapshot_name=snapshot_name,
             subscription_id=self._config.subscription_id,
             api_version=api_version,
-            template_url=self._delete_initial.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
-        _stream = False
+        _stream = True
         pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
 
         if response.status_code not in [200, 202, 204]:
+            await response.read()  # Load the body in memory and close the socket
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
-        if cls:
-            return cls(pipeline_response, None, {})
+        if response.status_code == 200:
+            deserialized = response.stream_download(self._client._pipeline)
 
-    _delete_initial.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/snapshots/{snapshotName}"
-    }
+        if response.status_code == 202:
+            deserialized = response.stream_download(self._client._pipeline)
+
+        if response.status_code == 204:
+            deserialized = response.stream_download(self._client._pipeline)
+
+        if cls:
+            return cls(pipeline_response, deserialized, {})  # type: ignore
+
+        return deserialized  # type: ignore
 
     @distributed_trace_async
     async def begin_delete(self, resource_group_name: str, snapshot_name: str, **kwargs: Any) -> AsyncLROPoller[None]:
@@ -4720,14 +4236,6 @@ class SnapshotsOperations:
          after the snapshot is created. Supported characters for the name are a-z, A-Z, 0-9, _ and -.
          The max name length is 80 characters. Required.
         :type snapshot_name: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of AsyncLROPoller that returns either None or the result of cls(response)
         :rtype: ~azure.core.polling.AsyncLROPoller[None]
         :raises ~azure.core.exceptions.HttpResponseError:
@@ -4741,7 +4249,7 @@ class SnapshotsOperations:
         lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
         cont_token: Optional[str] = kwargs.pop("continuation_token", None)
         if cont_token is None:
-            raw_result = await self._delete_initial(  # type: ignore
+            raw_result = await self._delete_initial(
                 resource_group_name=resource_group_name,
                 snapshot_name=snapshot_name,
                 api_version=api_version,
@@ -4750,11 +4258,12 @@ class SnapshotsOperations:
                 params=_params,
                 **kwargs
             )
+            await raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):  # pylint: disable=inconsistent-return-statements
             if cls:
-                return cls(pipeline_response, None, {})
+                return cls(pipeline_response, None, {})  # type: ignore
 
         if polling is True:
             polling_method: AsyncPollingMethod = cast(AsyncPollingMethod, AsyncARMPolling(lro_delay, **kwargs))
@@ -4763,17 +4272,13 @@ class SnapshotsOperations:
         else:
             polling_method = polling
         if cont_token:
-            return AsyncLROPoller.from_continuation_token(
+            return AsyncLROPoller[None].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return AsyncLROPoller(self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
-
-    begin_delete.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/snapshots/{snapshotName}"
-    }
+        return AsyncLROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
 
     @distributed_trace
     def list_by_resource_group(self, resource_group_name: str, **kwargs: Any) -> AsyncIterable["_models.Snapshot"]:
@@ -4781,7 +4286,6 @@ class SnapshotsOperations:
 
         :param resource_group_name: The name of the resource group. Required.
         :type resource_group_name: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: An iterator like instance of either Snapshot or the result of cls(response)
         :rtype:
          ~azure.core.async_paging.AsyncItemPaged[~azure.mgmt.compute.v2023_04_02.models.Snapshot]
@@ -4793,7 +4297,7 @@ class SnapshotsOperations:
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2023-04-02"))
         cls: ClsType[_models.SnapshotList] = kwargs.pop("cls", None)
 
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -4804,16 +4308,14 @@ class SnapshotsOperations:
         def prepare_request(next_link=None):
             if not next_link:
 
-                request = build_snapshots_list_by_resource_group_request(
+                _request = build_snapshots_list_by_resource_group_request(
                     resource_group_name=resource_group_name,
                     subscription_id=self._config.subscription_id,
                     api_version=api_version,
-                    template_url=self.list_by_resource_group.metadata["url"],
                     headers=_headers,
                     params=_params,
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
+                _request.url = self._client.format_url(_request.url)
 
             else:
                 # make call to next link with the client's api-version
@@ -4824,14 +4326,13 @@ class SnapshotsOperations:
                         for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
                     }
                 )
-                _next_request_params["api-version"] = self._config.api_version
-                request = HttpRequest(
+                _next_request_params["api-version"] = self._api_version
+                _request = HttpRequest(
                     "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
-                request.method = "GET"
-            return request
+                _request.url = self._client.format_url(_request.url)
+                _request.method = "GET"
+            return _request
 
         async def extract_data(pipeline_response):
             deserialized = self._deserialize("SnapshotList", pipeline_response)
@@ -4841,11 +4342,11 @@ class SnapshotsOperations:
             return deserialized.next_link or None, AsyncList(list_of_elem)
 
         async def get_next(next_link=None):
-            request = prepare_request(next_link)
+            _request = prepare_request(next_link)
 
             _stream = False
             pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-                request, stream=_stream, **kwargs
+                _request, stream=_stream, **kwargs
             )
             response = pipeline_response.http_response
 
@@ -4856,16 +4357,11 @@ class SnapshotsOperations:
             return pipeline_response
 
         return AsyncItemPaged(get_next, extract_data)
-
-    list_by_resource_group.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/snapshots"
-    }
 
     @distributed_trace
     def list(self, **kwargs: Any) -> AsyncIterable["_models.Snapshot"]:
         """Lists snapshots under a subscription.
 
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: An iterator like instance of either Snapshot or the result of cls(response)
         :rtype:
          ~azure.core.async_paging.AsyncItemPaged[~azure.mgmt.compute.v2023_04_02.models.Snapshot]
@@ -4877,7 +4373,7 @@ class SnapshotsOperations:
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2023-04-02"))
         cls: ClsType[_models.SnapshotList] = kwargs.pop("cls", None)
 
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -4888,15 +4384,13 @@ class SnapshotsOperations:
         def prepare_request(next_link=None):
             if not next_link:
 
-                request = build_snapshots_list_request(
+                _request = build_snapshots_list_request(
                     subscription_id=self._config.subscription_id,
                     api_version=api_version,
-                    template_url=self.list.metadata["url"],
                     headers=_headers,
                     params=_params,
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
+                _request.url = self._client.format_url(_request.url)
 
             else:
                 # make call to next link with the client's api-version
@@ -4907,14 +4401,13 @@ class SnapshotsOperations:
                         for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
                     }
                 )
-                _next_request_params["api-version"] = self._config.api_version
-                request = HttpRequest(
+                _next_request_params["api-version"] = self._api_version
+                _request = HttpRequest(
                     "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
                 )
-                request = _convert_request(request)
-                request.url = self._client.format_url(request.url)
-                request.method = "GET"
-            return request
+                _request.url = self._client.format_url(_request.url)
+                _request.method = "GET"
+            return _request
 
         async def extract_data(pipeline_response):
             deserialized = self._deserialize("SnapshotList", pipeline_response)
@@ -4924,11 +4417,11 @@ class SnapshotsOperations:
             return deserialized.next_link or None, AsyncList(list_of_elem)
 
         async def get_next(next_link=None):
-            request = prepare_request(next_link)
+            _request = prepare_request(next_link)
 
             _stream = False
             pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-                request, stream=_stream, **kwargs
+                _request, stream=_stream, **kwargs
             )
             response = pipeline_response.http_response
 
@@ -4940,16 +4433,14 @@ class SnapshotsOperations:
 
         return AsyncItemPaged(get_next, extract_data)
 
-    list.metadata = {"url": "/subscriptions/{subscriptionId}/providers/Microsoft.Compute/snapshots"}
-
     async def _grant_access_initial(
         self,
         resource_group_name: str,
         snapshot_name: str,
-        grant_access_data: Union[_models.GrantAccessData, IO],
+        grant_access_data: Union[_models.GrantAccessData, IO[bytes]],
         **kwargs: Any
-    ) -> Optional[_models.AccessUri]:
-        error_map = {
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -4962,7 +4453,7 @@ class SnapshotsOperations:
 
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2023-04-02"))
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-        cls: ClsType[Optional[_models.AccessUri]] = kwargs.pop("cls", None)
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
 
         content_type = content_type or "application/json"
         _json = None
@@ -4972,7 +4463,7 @@ class SnapshotsOperations:
         else:
             _json = self._serialize.body(grant_access_data, "GrantAccessData")
 
-        request = build_snapshots_grant_access_request(
+        _request = build_snapshots_grant_access_request(
             resource_group_name=resource_group_name,
             snapshot_name=snapshot_name,
             subscription_id=self._config.subscription_id,
@@ -4980,36 +4471,33 @@ class SnapshotsOperations:
             content_type=content_type,
             json=_json,
             content=_content,
-            template_url=self._grant_access_initial.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
-        _stream = False
+        _stream = True
         pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
 
         if response.status_code not in [200, 202]:
+            await response.read()  # Load the body in memory and close the socket
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
-        deserialized = None
         if response.status_code == 200:
-            deserialized = self._deserialize("AccessUri", pipeline_response)
+            deserialized = response.stream_download(self._client._pipeline)
+
+        if response.status_code == 202:
+            deserialized = response.stream_download(self._client._pipeline)
 
         if cls:
-            return cls(pipeline_response, deserialized, {})
+            return cls(pipeline_response, deserialized, {})  # type: ignore
 
-        return deserialized
-
-    _grant_access_initial.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/snapshots/{snapshotName}/beginGetAccess"
-    }
+        return deserialized  # type: ignore
 
     @overload
     async def begin_grant_access(
@@ -5035,14 +4523,6 @@ class SnapshotsOperations:
         :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of AsyncLROPoller that returns either AccessUri or the result of
          cls(response)
         :rtype: ~azure.core.polling.AsyncLROPoller[~azure.mgmt.compute.v2023_04_02.models.AccessUri]
@@ -5054,7 +4534,7 @@ class SnapshotsOperations:
         self,
         resource_group_name: str,
         snapshot_name: str,
-        grant_access_data: IO,
+        grant_access_data: IO[bytes],
         *,
         content_type: str = "application/json",
         **kwargs: Any
@@ -5069,18 +4549,10 @@ class SnapshotsOperations:
         :type snapshot_name: str
         :param grant_access_data: Access data object supplied in the body of the get snapshot access
          operation. Required.
-        :type grant_access_data: IO
+        :type grant_access_data: IO[bytes]
         :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
          Default value is "application/json".
         :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of AsyncLROPoller that returns either AccessUri or the result of
          cls(response)
         :rtype: ~azure.core.polling.AsyncLROPoller[~azure.mgmt.compute.v2023_04_02.models.AccessUri]
@@ -5092,7 +4564,7 @@ class SnapshotsOperations:
         self,
         resource_group_name: str,
         snapshot_name: str,
-        grant_access_data: Union[_models.GrantAccessData, IO],
+        grant_access_data: Union[_models.GrantAccessData, IO[bytes]],
         **kwargs: Any
     ) -> AsyncLROPoller[_models.AccessUri]:
         """Grants access to a snapshot.
@@ -5104,19 +4576,8 @@ class SnapshotsOperations:
          The max name length is 80 characters. Required.
         :type snapshot_name: str
         :param grant_access_data: Access data object supplied in the body of the get snapshot access
-         operation. Is either a GrantAccessData type or a IO type. Required.
-        :type grant_access_data: ~azure.mgmt.compute.v2023_04_02.models.GrantAccessData or IO
-        :keyword content_type: Body Parameter content-type. Known values are: 'application/json'.
-         Default value is None.
-        :paramtype content_type: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
+         operation. Is either a GrantAccessData type or a IO[bytes] type. Required.
+        :type grant_access_data: ~azure.mgmt.compute.v2023_04_02.models.GrantAccessData or IO[bytes]
         :return: An instance of AsyncLROPoller that returns either AccessUri or the result of
          cls(response)
         :rtype: ~azure.core.polling.AsyncLROPoller[~azure.mgmt.compute.v2023_04_02.models.AccessUri]
@@ -5143,12 +4604,13 @@ class SnapshotsOperations:
                 params=_params,
                 **kwargs
             )
+            await raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):
-            deserialized = self._deserialize("AccessUri", pipeline_response)
+            deserialized = self._deserialize("AccessUri", pipeline_response.http_response)
             if cls:
-                return cls(pipeline_response, deserialized, {})
+                return cls(pipeline_response, deserialized, {})  # type: ignore
             return deserialized
 
         if polling is True:
@@ -5160,22 +4622,20 @@ class SnapshotsOperations:
         else:
             polling_method = polling
         if cont_token:
-            return AsyncLROPoller.from_continuation_token(
+            return AsyncLROPoller[_models.AccessUri].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return AsyncLROPoller(self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+        return AsyncLROPoller[_models.AccessUri](
+            self._client, raw_result, get_long_running_output, polling_method  # type: ignore
+        )
 
-    begin_grant_access.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/snapshots/{snapshotName}/beginGetAccess"
-    }
-
-    async def _revoke_access_initial(  # pylint: disable=inconsistent-return-statements
+    async def _revoke_access_initial(
         self, resource_group_name: str, snapshot_name: str, **kwargs: Any
-    ) -> None:
-        error_map = {
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -5187,37 +4647,40 @@ class SnapshotsOperations:
         _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
 
         api_version: str = kwargs.pop("api_version", _params.pop("api-version", self._api_version or "2023-04-02"))
-        cls: ClsType[None] = kwargs.pop("cls", None)
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
 
-        request = build_snapshots_revoke_access_request(
+        _request = build_snapshots_revoke_access_request(
             resource_group_name=resource_group_name,
             snapshot_name=snapshot_name,
             subscription_id=self._config.subscription_id,
             api_version=api_version,
-            template_url=self._revoke_access_initial.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request.url = self._client.format_url(_request.url)
 
-        _stream = False
+        _stream = True
         pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
 
         if response.status_code not in [200, 202]:
+            await response.read()  # Load the body in memory and close the socket
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
-        if cls:
-            return cls(pipeline_response, None, {})
+        if response.status_code == 200:
+            deserialized = response.stream_download(self._client._pipeline)
 
-    _revoke_access_initial.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/snapshots/{snapshotName}/endGetAccess"
-    }
+        if response.status_code == 202:
+            deserialized = response.stream_download(self._client._pipeline)
+
+        if cls:
+            return cls(pipeline_response, deserialized, {})  # type: ignore
+
+        return deserialized  # type: ignore
 
     @distributed_trace_async
     async def begin_revoke_access(
@@ -5231,14 +4694,6 @@ class SnapshotsOperations:
          after the snapshot is created. Supported characters for the name are a-z, A-Z, 0-9, _ and -.
          The max name length is 80 characters. Required.
         :type snapshot_name: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
-        :keyword str continuation_token: A continuation token to restart a poller from a saved state.
-        :keyword polling: By default, your polling method will be AsyncARMPolling. Pass in False for
-         this operation to not poll, or pass in your own initialized polling object for a personal
-         polling strategy.
-        :paramtype polling: bool or ~azure.core.polling.AsyncPollingMethod
-        :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
-         Retry-After header is present.
         :return: An instance of AsyncLROPoller that returns either None or the result of cls(response)
         :rtype: ~azure.core.polling.AsyncLROPoller[None]
         :raises ~azure.core.exceptions.HttpResponseError:
@@ -5252,7 +4707,7 @@ class SnapshotsOperations:
         lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
         cont_token: Optional[str] = kwargs.pop("continuation_token", None)
         if cont_token is None:
-            raw_result = await self._revoke_access_initial(  # type: ignore
+            raw_result = await self._revoke_access_initial(
                 resource_group_name=resource_group_name,
                 snapshot_name=snapshot_name,
                 api_version=api_version,
@@ -5261,11 +4716,12 @@ class SnapshotsOperations:
                 params=_params,
                 **kwargs
             )
+            await raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):  # pylint: disable=inconsistent-return-statements
             if cls:
-                return cls(pipeline_response, None, {})
+                return cls(pipeline_response, None, {})  # type: ignore
 
         if polling is True:
             polling_method: AsyncPollingMethod = cast(
@@ -5276,14 +4732,10 @@ class SnapshotsOperations:
         else:
             polling_method = polling
         if cont_token:
-            return AsyncLROPoller.from_continuation_token(
+            return AsyncLROPoller[None].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return AsyncLROPoller(self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
-
-    begin_revoke_access.metadata = {
-        "url": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/snapshots/{snapshotName}/endGetAccess"
-    }
+        return AsyncLROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore

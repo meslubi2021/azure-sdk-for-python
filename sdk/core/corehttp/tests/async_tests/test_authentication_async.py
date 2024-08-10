@@ -16,6 +16,7 @@ from corehttp.runtime.policies import (
     SansIOHTTPPolicy,
 )
 from corehttp.rest import HttpRequest
+from azure.core.pipeline.policies import AzureKeyCredentialPolicy
 import pytest
 
 pytestmark = pytest.mark.asyncio
@@ -37,7 +38,7 @@ async def test_bearer_policy_adds_header():
         get_token_calls += 1
         return expected_token
 
-    fake_credential = Mock(get_token=get_token)
+    fake_credential = Mock(spec_set=["get_token"], get_token=get_token)
     policies = [AsyncBearerTokenCredentialPolicy(fake_credential, "scope"), Mock(send=verify_authorization_header)]
     pipeline = AsyncPipeline(transport=Mock(), policies=policies)
 
@@ -59,7 +60,7 @@ async def test_bearer_policy_send():
         return expected_response
 
     get_token = get_completed_future(AccessToken("***", 42))
-    fake_credential = Mock(get_token=lambda *_, **__: get_token)
+    fake_credential = Mock(spec_set=["get_token"], get_token=lambda *_, **__: get_token)
     policies = [AsyncBearerTokenCredentialPolicy(fake_credential, "scope"), Mock(send=verify_request)]
     response = await AsyncPipeline(transport=Mock(), policies=policies).run(expected_request)
 
@@ -76,7 +77,7 @@ async def test_bearer_policy_sync_send():
         return expected_response
 
     get_token = get_completed_future(AccessToken("***", 42))
-    fake_credential = Mock(get_token=lambda *_, **__: get_token)
+    fake_credential = Mock(spec_set=["get_token"], get_token=lambda *_, **__: get_token)
     policies = [AsyncBearerTokenCredentialPolicy(fake_credential, "scope"), Mock(send=verify_request)]
     response = await AsyncPipeline(transport=Mock(), policies=policies).run(expected_request)
 
@@ -93,12 +94,15 @@ async def test_bearer_policy_token_caching():
         get_token_calls += 1
         return expected_token
 
-    credential = Mock(get_token=get_token)
+    async def send_mock(_):
+        return Mock(http_response=Mock(status_code=200))
+
+    credential = Mock(spec_set=["get_token"], get_token=get_token)
     policies = [
         AsyncBearerTokenCredentialPolicy(credential, "scope"),
-        Mock(send=Mock(return_value=get_completed_future(Mock()))),
+        Mock(send=send_mock),
     ]
-    pipeline = AsyncPipeline(transport=Mock, policies=policies)
+    pipeline = AsyncPipeline(transport=Mock(), policies=policies)
 
     await pipeline.run(HttpRequest("GET", "https://spam.eggs"))
     assert get_token_calls == 1  # policy has no token at first request -> it should call get_token
@@ -111,7 +115,7 @@ async def test_bearer_policy_token_caching():
     expected_token = expired_token
     policies = [
         AsyncBearerTokenCredentialPolicy(credential, "scope"),
-        Mock(send=lambda _: get_completed_future(Mock())),
+        Mock(send=send_mock),
     ]
     pipeline = AsyncPipeline(transport=Mock(), policies=policies)
 
@@ -129,7 +133,7 @@ async def test_bearer_policy_optionally_enforces_https():
         assert "enforce_https" not in kwargs, "AsyncBearerTokenCredentialPolicy didn't pop the 'enforce_https' option"
         return Mock()
 
-    credential = Mock(get_token=lambda *_, **__: get_completed_future(AccessToken("***", 42)))
+    credential = Mock(spec_set=["get_token"], get_token=lambda *_, **__: get_completed_future(AccessToken("***", 42)))
     pipeline = AsyncPipeline(
         transport=Mock(send=assert_option_popped), policies=[AsyncBearerTokenCredentialPolicy(credential, "scope")]
     )
@@ -158,7 +162,7 @@ async def test_bearer_policy_preserves_enforce_https_opt_out():
             return Mock()
 
     get_token = get_completed_future(AccessToken("***", 42))
-    credential = Mock(get_token=lambda *_, **__: get_token)
+    credential = Mock(spec_set=["get_token"], get_token=lambda *_, **__: get_token)
     policies = [AsyncBearerTokenCredentialPolicy(credential, "scope"), ContextValidator()]
     pipeline = AsyncPipeline(transport=Mock(send=lambda *_, **__: get_completed_future(Mock())), policies=policies)
 
@@ -174,7 +178,7 @@ async def test_bearer_policy_context_unmodified_by_default():
             return Mock()
 
     get_token = get_completed_future(AccessToken("***", 42))
-    credential = Mock(get_token=lambda *_, **__: get_token)
+    credential = Mock(spec_set=["get_token"], get_token=lambda *_, **__: get_token)
     policies = [AsyncBearerTokenCredentialPolicy(credential, "scope"), ContextValidator()]
     pipeline = AsyncPipeline(transport=Mock(send=lambda *_, **__: get_completed_future(Mock())), policies=policies)
 
@@ -196,7 +200,10 @@ async def test_bearer_policy_calls_sansio_methods():
             self.response = await super().send(request)
             return self.response
 
-    credential = Mock(get_token=Mock(return_value=get_completed_future(AccessToken("***", int(time.time()) + 3600))))
+    credential = Mock(
+        spec_set=["get_token"],
+        get_token=Mock(return_value=get_completed_future(AccessToken("***", int(time.time()) + 3600))),
+    )
     policy = TestPolicy(credential, "scope")
     transport = Mock(send=Mock(return_value=get_completed_future(Mock(status_code=200))))
 
@@ -238,6 +245,25 @@ async def test_bearer_policy_calls_sansio_methods():
     policy.on_exception.assert_called_once_with(policy.request)
 
 
+async def test_azure_core_sans_io_policy():
+    """Tests to see that we can use an azure.core SansIOHTTPPolicy with the corehttp Pipeline"""
+
+    class TestPolicy(AzureKeyCredentialPolicy):
+        def __init__(self, *args, **kwargs):
+            super(TestPolicy, self).__init__(*args, **kwargs)
+            self.on_exception = Mock(return_value=False)
+            self.on_request = Mock()
+
+    credential = Mock(key="key")
+    policy = TestPolicy(credential, "scope")
+    transport = Mock(send=Mock(return_value=get_completed_future(Mock(status_code=200))))
+
+    pipeline = AsyncPipeline(transport=transport, policies=[policy])
+    await pipeline.run(HttpRequest("GET", "https://localhost"))
+
+    policy.on_request.assert_called_once()
+
+
 def get_completed_future(result=None):
     fut = asyncio.Future()
     fut.set_result(result)
@@ -252,3 +278,14 @@ async def test_async_token_credential_inheritance():
 
     cred = TestTokenCredential()
     await cred.get_token("scope")
+
+
+@pytest.mark.asyncio
+async def test_async_token_credential_asyncio_lock():
+    auth_policy = AsyncBearerTokenCredentialPolicy(Mock(), "scope")
+    assert isinstance(auth_policy._lock, asyncio.Lock)
+
+
+def test_async_token_credential_sync():
+    """Verify that AsyncBearerTokenCredentialPolicy can be constructed in a synchronous context."""
+    AsyncBearerTokenCredentialPolicy(Mock(), "scope")

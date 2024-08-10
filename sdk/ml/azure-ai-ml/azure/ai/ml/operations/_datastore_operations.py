@@ -11,20 +11,20 @@ from typing import Dict, Iterable, Optional, cast
 from marshmallow.exceptions import ValidationError as SchemaValidationError
 
 from azure.ai.ml._exception_helper import log_and_raise_error
-from azure.ai.ml._restclient.v2023_04_01_preview import AzureMachineLearningWorkspaces as ServiceClient042023Preview
-from azure.ai.ml._restclient.v2023_04_01_preview.models import Datastore as DatastoreData
-from azure.ai.ml._restclient.v2023_04_01_preview.models import DatastoreSecrets, NoneDatastoreCredentials
 from azure.ai.ml._restclient.v2024_01_01_preview import AzureMachineLearningWorkspaces as ServiceClient012024Preview
 from azure.ai.ml._restclient.v2024_01_01_preview.models import ComputeInstanceDataMount
+from azure.ai.ml._restclient.v2024_07_01_preview import AzureMachineLearningWorkspaces as ServiceClient072024Preview
+from azure.ai.ml._restclient.v2024_07_01_preview.models import Datastore as DatastoreData
+from azure.ai.ml._restclient.v2024_07_01_preview.models import DatastoreSecrets, NoneDatastoreCredentials, SecretExpiry
 from azure.ai.ml._scope_dependent_operations import OperationConfig, OperationScope, _ScopeDependentOperations
 from azure.ai.ml._telemetry import ActivityType, monitor_with_activity
 from azure.ai.ml._utils._experimental import experimental
 from azure.ai.ml._utils._logger_utils import OpsLogger
 from azure.ai.ml.entities._datastore.datastore import Datastore
-from azure.ai.ml.exceptions import ValidationException
+from azure.ai.ml.exceptions import MlException, ValidationException
 
 ops_logger = OpsLogger(__name__)
-logger, module_logger = ops_logger.package_logger, ops_logger.module_logger
+module_logger = ops_logger.module_logger
 
 
 class DatastoreOperations(_ScopeDependentOperations):
@@ -37,28 +37,32 @@ class DatastoreOperations(_ScopeDependentOperations):
     :type operation_scope: ~azure.ai.ml._scope_dependent_operations.OperationScope
     :param operation_config: Common configuration for operations classes of an MLClient object.
     :type operation_config: ~azure.ai.ml._scope_dependent_operations.OperationConfig
-    :param serviceclient_2022_10_01: Service client to allow end users to operate on Azure Machine Learning Workspace
-        resources.
-    :type serviceclient_2022_10_01: ~azure.ai.ml._restclient.v2022_10_01._azure_machine_learning_workspaces.
-        AzureMachineLearningWorkspaces
+    :param serviceclient_2024_01_01_preview: Service client to allow end users to operate on Azure Machine Learning
+        Workspace resources.
+    :type serviceclient_2024_01_01_preview: ~azure.ai.ml._restclient.v2023_01_01_preview.
+        _azure_machine_learning_workspaces.AzureMachineLearningWorkspaces
+    :param serviceclient_2024_07_01_preview: Service client to allow end users to operate on Azure Machine Learning
+        Workspace resources.
+    :type serviceclient_2024_07_01_preview: ~azure.ai.ml._restclient.v2024_07_01_preview.
+        _azure_machine_learning_workspaces.AzureMachineLearningWorkspaces
     """
 
     def __init__(
         self,
         operation_scope: OperationScope,
         operation_config: OperationConfig,
-        serviceclient_2023_04_01_preview: ServiceClient042023Preview,
         serviceclient_2024_01_01_preview: ServiceClient012024Preview,
+        serviceclient_2024_07_01_preview: ServiceClient072024Preview,
         **kwargs: Dict,
     ):
         super(DatastoreOperations, self).__init__(operation_scope, operation_config)
         ops_logger.update_info(kwargs)
-        self._operation = serviceclient_2023_04_01_preview.datastores
+        self._operation = serviceclient_2024_07_01_preview.datastores
         self._compute_operation = serviceclient_2024_01_01_preview.compute
-        self._credential = serviceclient_2023_04_01_preview._config.credential
+        self._credential = serviceclient_2024_07_01_preview._config.credential
         self._init_kwargs = kwargs
 
-    @monitor_with_activity(logger, "Datastore.List", ActivityType.PUBLICAPI)
+    @monitor_with_activity(ops_logger, "Datastore.List", ActivityType.PUBLICAPI)
     def list(self, *, include_secrets: bool = False) -> Iterable[Datastore]:
         """Lists all datastores and associated information within a workspace.
 
@@ -92,16 +96,17 @@ class DatastoreOperations(_ScopeDependentOperations):
             ),
         )
 
-    @monitor_with_activity(logger, "Datastore.ListSecrets", ActivityType.PUBLICAPI)
-    def _list_secrets(self, name: str) -> DatastoreSecrets:
+    @monitor_with_activity(ops_logger, "Datastore.ListSecrets", ActivityType.PUBLICAPI)
+    def _list_secrets(self, name: str, expirable_secret: bool = False) -> DatastoreSecrets:
         return self._operation.list_secrets(
             name=name,
+            body=SecretExpiry(expirable_secret=expirable_secret),
             resource_group_name=self._operation_scope.resource_group_name,
             workspace_name=self._workspace_name,
             **self._init_kwargs,
         )
 
-    @monitor_with_activity(logger, "Datastore.Delete", ActivityType.PUBLICAPI)
+    @monitor_with_activity(ops_logger, "Datastore.Delete", ActivityType.PUBLICAPI)
     def delete(self, name: str) -> None:
         """Deletes a datastore reference with the given name from the workspace. This method does not delete the actual
         datastore or underlying data in the datastore.
@@ -126,7 +131,7 @@ class DatastoreOperations(_ScopeDependentOperations):
             **self._init_kwargs,
         )
 
-    @monitor_with_activity(logger, "Datastore.Get", ActivityType.PUBLICAPI)
+    @monitor_with_activity(ops_logger, "Datastore.Get", ActivityType.PUBLICAPI)
     def get(self, name: str, *, include_secrets: bool = False) -> Datastore:  # type: ignore
         """Returns information about the datastore referenced by the given name.
 
@@ -163,10 +168,10 @@ class DatastoreOperations(_ScopeDependentOperations):
         if datastore_resource.name and not isinstance(
             datastore_resource.properties.credentials, NoneDatastoreCredentials
         ):
-            secrets = self._list_secrets(datastore_resource.name)
+            secrets = self._list_secrets(name=datastore_resource.name, expirable_secret=True)
             datastore_resource.properties.credentials.secrets = secrets
 
-    @monitor_with_activity(logger, "Datastore.GetDefault", ActivityType.PUBLICAPI)
+    @monitor_with_activity(ops_logger, "Datastore.GetDefault", ActivityType.PUBLICAPI)
     def get_default(self, *, include_secrets: bool = False) -> Datastore:  # type: ignore
         """Returns the workspace's default datastore.
 
@@ -197,7 +202,7 @@ class DatastoreOperations(_ScopeDependentOperations):
         except (ValidationException, SchemaValidationError) as ex:
             log_and_raise_error(ex)
 
-    @monitor_with_activity(logger, "Datastore.CreateOrUpdate", ActivityType.PUBLICAPI)
+    @monitor_with_activity(ops_logger, "Datastore.CreateOrUpdate", ActivityType.PUBLICAPI)
     def create_or_update(self, datastore: Datastore) -> Datastore:  # type: ignore
         """Attaches the passed in datastore to the workspace or updates the datastore if it already exists.
 
@@ -225,13 +230,13 @@ class DatastoreOperations(_ScopeDependentOperations):
                 skip_validation=True,
             )
             return Datastore._from_rest_object(datastore_resource)
-        except Exception as ex:  # pylint: disable=broad-except
+        except Exception as ex:  # pylint: disable=W0718
             if isinstance(ex, (ValidationException, SchemaValidationError)):
                 log_and_raise_error(ex)
             else:
                 raise ex
 
-    @monitor_with_activity(logger, "Datastore.Mount", ActivityType.PUBLICAPI)
+    @monitor_with_activity(ops_logger, "Datastore.Mount", ActivityType.PUBLICAPI)
     @experimental
     def mount(
         self,
@@ -272,10 +277,9 @@ class DatastoreOperations(_ScopeDependentOperations):
         try:
             from azureml.dataprep import rslex_fuse_subprocess_wrapper
         except ImportError as exc:
-            raise Exception(
-                "Mount operations requires package azureml-dataprep-rslex installed. "
-                + "You can install it with Azure ML SDK with `pip install azure-ai-ml[mount]`."
-            ) from exc
+            msg = "Mount operations requires package azureml-dataprep-rslex installed. \
+                You can install it with Azure ML SDK with `pip install azure-ai-ml[mount]`."
+            raise MlException(message=msg, no_personal_data_message=msg) from exc
 
         uri = rslex_fuse_subprocess_wrapper.build_datastore_uri(
             self._operation_scope._subscription_id, self._resource_group_name, self._workspace_name, path
@@ -309,9 +313,11 @@ class DatastoreOperations(_ScopeDependentOperations):
                     if mount.mount_state == "MountRequested":
                         pass
                     elif mount.mount_state == "MountFailed":
-                        raise Exception(f"Mount failed [name: {mount_name}]: {mount.error}")
+                        msg = f"Mount failed [name: {mount_name}]: {mount.error}"
+                        raise MlException(message=msg, no_personal_data_message=msg)
                     else:
-                        raise Exception(f"Got unexpected mount state [name: {mount_name}]: {mount.mount_state}")
+                        msg = f"Got unexpected mount state [name: {mount_name}]: {mount.mount_state}"
+                        raise MlException(message=msg, no_personal_data_message=msg)
                 except IndexError:
                     pass
                 time.sleep(5)

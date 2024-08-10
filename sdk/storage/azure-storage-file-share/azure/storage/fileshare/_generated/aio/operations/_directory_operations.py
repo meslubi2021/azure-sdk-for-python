@@ -1,4 +1,4 @@
-# pylint: disable=too-many-lines
+# pylint: disable=too-many-lines,too-many-statements
 # coding=utf-8
 # --------------------------------------------------------------------------
 # Copyright (c) Microsoft Corporation. All rights reserved.
@@ -7,7 +7,7 @@
 # Changes may cause incorrect behavior and will be lost if the code is regenerated.
 # --------------------------------------------------------------------------
 import sys
-from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Type, TypeVar, Union
 
 from azure.core.exceptions import (
     ClientAuthenticationError,
@@ -37,10 +37,10 @@ from ...operations._directory_operations import (
     build_set_properties_request,
 )
 
-if sys.version_info >= (3, 8):
-    from typing import Literal  # pylint: disable=no-name-in-module, ungrouped-imports
+if sys.version_info >= (3, 9):
+    from collections.abc import MutableMapping
 else:
-    from typing_extensions import Literal  # type: ignore  # pylint: disable=ungrouped-imports
+    from typing import MutableMapping  # type: ignore  # pylint: disable=ungrouped-imports
 T = TypeVar("T")
 ClsType = Optional[Callable[[PipelineResponse[HttpRequest, AsyncHttpResponse], T, Dict[str, Any]], Any]]
 
@@ -70,6 +70,7 @@ class DirectoryOperations:
         timeout: Optional[int] = None,
         metadata: Optional[Dict[str, str]] = None,
         file_permission: str = "inherit",
+        file_permission_format: Optional[Union[str, _models.FilePermissionFormat]] = None,
         file_permission_key: Optional[str] = None,
         file_attributes: str = "none",
         file_creation_time: str = "now",
@@ -93,6 +94,13 @@ class DirectoryOperations:
          input, it must have owner, group and dacl. Note: Only one of the x-ms-file-permission or
          x-ms-file-permission-key should be specified. Default value is "inherit".
         :type file_permission: str
+        :param file_permission_format: Optional. Available for version 2023-06-01 and later. Specifies
+         the format in which the permission is returned. Acceptable values are SDDL or binary. If
+         x-ms-file-permission-format is unspecified or explicitly set to SDDL, the permission is
+         returned in SDDL format. If x-ms-file-permission-format is explicitly set to binary, the
+         permission is returned as a base64 string representing the binary encoding of the permission.
+         Known values are: "Sddl" and "Binary". Default value is None.
+        :type file_permission_format: str or ~azure.storage.fileshare.models.FilePermissionFormat
         :param file_permission_key: Key of the permission to be set for the directory/file. Note: Only
          one of the x-ms-file-permission or x-ms-file-permission-key should be specified. Default value
          is None.
@@ -110,15 +118,11 @@ class DirectoryOperations:
         :param file_change_time: Change time for the file/directory. Default value: Now. Default value
          is None.
         :type file_change_time: str
-        :keyword restype: restype. Default value is "directory". Note that overriding this default
-         value may result in unsupported behavior.
-        :paramtype restype: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: None or the result of cls(response)
         :rtype: None
         :raises ~azure.core.exceptions.HttpResponseError:
         """
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -132,11 +136,12 @@ class DirectoryOperations:
         restype: Literal["directory"] = kwargs.pop("restype", _params.pop("restype", "directory"))
         cls: ClsType[None] = kwargs.pop("cls", None)
 
-        request = build_create_request(
+        _request = build_create_request(
             url=self._config.url,
             timeout=timeout,
             metadata=metadata,
             file_permission=file_permission,
+            file_permission_format=file_permission_format,
             file_permission_key=file_permission_key,
             file_attributes=file_attributes,
             file_creation_time=file_creation_time,
@@ -146,16 +151,15 @@ class DirectoryOperations:
             file_request_intent=self._config.file_request_intent,
             restype=restype,
             version=self._config.version,
-            template_url=self.create.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request = _convert_request(_request)
+        _request.url = self._client.format_url(_request.url)
 
         _stream = False
         pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
@@ -193,9 +197,7 @@ class DirectoryOperations:
         response_headers["x-ms-file-parent-id"] = self._deserialize("str", response.headers.get("x-ms-file-parent-id"))
 
         if cls:
-            return cls(pipeline_response, None, response_headers)
-
-    create.metadata = {"url": "{url}"}
+            return cls(pipeline_response, None, response_headers)  # type: ignore
 
     @distributed_trace_async
     async def get_properties(  # pylint: disable=inconsistent-return-statements
@@ -213,15 +215,11 @@ class DirectoryOperations:
          href="https://docs.microsoft.com/en-us/rest/api/storageservices/Setting-Timeouts-for-File-Service-Operations?redirectedfrom=MSDN">Setting
          Timeouts for File Service Operations.</a>`. Default value is None.
         :type timeout: int
-        :keyword restype: restype. Default value is "directory". Note that overriding this default
-         value may result in unsupported behavior.
-        :paramtype restype: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: None or the result of cls(response)
         :rtype: None
         :raises ~azure.core.exceptions.HttpResponseError:
         """
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -235,7 +233,7 @@ class DirectoryOperations:
         restype: Literal["directory"] = kwargs.pop("restype", _params.pop("restype", "directory"))
         cls: ClsType[None] = kwargs.pop("cls", None)
 
-        request = build_get_properties_request(
+        _request = build_get_properties_request(
             url=self._config.url,
             sharesnapshot=sharesnapshot,
             timeout=timeout,
@@ -243,16 +241,15 @@ class DirectoryOperations:
             file_request_intent=self._config.file_request_intent,
             restype=restype,
             version=self._config.version,
-            template_url=self.get_properties.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request = _convert_request(_request)
+        _request.url = self._client.format_url(_request.url)
 
         _stream = False
         pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
@@ -291,9 +288,7 @@ class DirectoryOperations:
         response_headers["x-ms-file-parent-id"] = self._deserialize("str", response.headers.get("x-ms-file-parent-id"))
 
         if cls:
-            return cls(pipeline_response, None, response_headers)
-
-    get_properties.metadata = {"url": "{url}"}
+            return cls(pipeline_response, None, response_headers)  # type: ignore
 
     @distributed_trace_async
     async def delete(  # pylint: disable=inconsistent-return-statements
@@ -307,15 +302,11 @@ class DirectoryOperations:
          href="https://docs.microsoft.com/en-us/rest/api/storageservices/Setting-Timeouts-for-File-Service-Operations?redirectedfrom=MSDN">Setting
          Timeouts for File Service Operations.</a>`. Default value is None.
         :type timeout: int
-        :keyword restype: restype. Default value is "directory". Note that overriding this default
-         value may result in unsupported behavior.
-        :paramtype restype: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: None or the result of cls(response)
         :rtype: None
         :raises ~azure.core.exceptions.HttpResponseError:
         """
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -329,23 +320,22 @@ class DirectoryOperations:
         restype: Literal["directory"] = kwargs.pop("restype", _params.pop("restype", "directory"))
         cls: ClsType[None] = kwargs.pop("cls", None)
 
-        request = build_delete_request(
+        _request = build_delete_request(
             url=self._config.url,
             timeout=timeout,
             allow_trailing_dot=self._config.allow_trailing_dot,
             file_request_intent=self._config.file_request_intent,
             restype=restype,
             version=self._config.version,
-            template_url=self.delete.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request = _convert_request(_request)
+        _request.url = self._client.format_url(_request.url)
 
         _stream = False
         pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
@@ -361,15 +351,14 @@ class DirectoryOperations:
         response_headers["Date"] = self._deserialize("rfc-1123", response.headers.get("Date"))
 
         if cls:
-            return cls(pipeline_response, None, response_headers)
-
-    delete.metadata = {"url": "{url}"}
+            return cls(pipeline_response, None, response_headers)  # type: ignore
 
     @distributed_trace_async
     async def set_properties(  # pylint: disable=inconsistent-return-statements
         self,
         timeout: Optional[int] = None,
         file_permission: str = "inherit",
+        file_permission_format: Optional[Union[str, _models.FilePermissionFormat]] = None,
         file_permission_key: Optional[str] = None,
         file_attributes: str = "none",
         file_creation_time: str = "now",
@@ -390,6 +379,13 @@ class DirectoryOperations:
          input, it must have owner, group and dacl. Note: Only one of the x-ms-file-permission or
          x-ms-file-permission-key should be specified. Default value is "inherit".
         :type file_permission: str
+        :param file_permission_format: Optional. Available for version 2023-06-01 and later. Specifies
+         the format in which the permission is returned. Acceptable values are SDDL or binary. If
+         x-ms-file-permission-format is unspecified or explicitly set to SDDL, the permission is
+         returned in SDDL format. If x-ms-file-permission-format is explicitly set to binary, the
+         permission is returned as a base64 string representing the binary encoding of the permission.
+         Known values are: "Sddl" and "Binary". Default value is None.
+        :type file_permission_format: str or ~azure.storage.fileshare.models.FilePermissionFormat
         :param file_permission_key: Key of the permission to be set for the directory/file. Note: Only
          one of the x-ms-file-permission or x-ms-file-permission-key should be specified. Default value
          is None.
@@ -407,18 +403,11 @@ class DirectoryOperations:
         :param file_change_time: Change time for the file/directory. Default value: Now. Default value
          is None.
         :type file_change_time: str
-        :keyword restype: restype. Default value is "directory". Note that overriding this default
-         value may result in unsupported behavior.
-        :paramtype restype: str
-        :keyword comp: comp. Default value is "properties". Note that overriding this default value may
-         result in unsupported behavior.
-        :paramtype comp: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: None or the result of cls(response)
         :rtype: None
         :raises ~azure.core.exceptions.HttpResponseError:
         """
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -433,10 +422,11 @@ class DirectoryOperations:
         comp: Literal["properties"] = kwargs.pop("comp", _params.pop("comp", "properties"))
         cls: ClsType[None] = kwargs.pop("cls", None)
 
-        request = build_set_properties_request(
+        _request = build_set_properties_request(
             url=self._config.url,
             timeout=timeout,
             file_permission=file_permission,
+            file_permission_format=file_permission_format,
             file_permission_key=file_permission_key,
             file_attributes=file_attributes,
             file_creation_time=file_creation_time,
@@ -447,16 +437,15 @@ class DirectoryOperations:
             restype=restype,
             comp=comp,
             version=self._config.version,
-            template_url=self.set_properties.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request = _convert_request(_request)
+        _request.url = self._client.format_url(_request.url)
 
         _stream = False
         pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
@@ -494,9 +483,7 @@ class DirectoryOperations:
         response_headers["x-ms-file-parent-id"] = self._deserialize("str", response.headers.get("x-ms-file-parent-id"))
 
         if cls:
-            return cls(pipeline_response, None, response_headers)
-
-    set_properties.metadata = {"url": "{url}"}
+            return cls(pipeline_response, None, response_headers)  # type: ignore
 
     @distributed_trace_async
     async def set_metadata(  # pylint: disable=inconsistent-return-statements
@@ -512,18 +499,11 @@ class DirectoryOperations:
         :param metadata: A name-value pair to associate with a file storage object. Default value is
          None.
         :type metadata: dict[str, str]
-        :keyword restype: restype. Default value is "directory". Note that overriding this default
-         value may result in unsupported behavior.
-        :paramtype restype: str
-        :keyword comp: comp. Default value is "metadata". Note that overriding this default value may
-         result in unsupported behavior.
-        :paramtype comp: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: None or the result of cls(response)
         :rtype: None
         :raises ~azure.core.exceptions.HttpResponseError:
         """
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -538,7 +518,7 @@ class DirectoryOperations:
         comp: Literal["metadata"] = kwargs.pop("comp", _params.pop("comp", "metadata"))
         cls: ClsType[None] = kwargs.pop("cls", None)
 
-        request = build_set_metadata_request(
+        _request = build_set_metadata_request(
             url=self._config.url,
             timeout=timeout,
             metadata=metadata,
@@ -547,16 +527,15 @@ class DirectoryOperations:
             restype=restype,
             comp=comp,
             version=self._config.version,
-            template_url=self.set_metadata.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request = _convert_request(_request)
+        _request.url = self._client.format_url(_request.url)
 
         _stream = False
         pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
@@ -576,9 +555,7 @@ class DirectoryOperations:
         )
 
         if cls:
-            return cls(pipeline_response, None, response_headers)
-
-    set_metadata.metadata = {"url": "{url}"}
+            return cls(pipeline_response, None, response_headers)  # type: ignore
 
     @distributed_trace_async
     async def list_files_and_directories_segment(
@@ -620,18 +597,11 @@ class DirectoryOperations:
         :type include: list[str or ~azure.storage.fileshare.models.ListFilesIncludeType]
         :param include_extended_info: Include extended information. Default value is None.
         :type include_extended_info: bool
-        :keyword restype: restype. Default value is "directory". Note that overriding this default
-         value may result in unsupported behavior.
-        :paramtype restype: str
-        :keyword comp: comp. Default value is "list". Note that overriding this default value may
-         result in unsupported behavior.
-        :paramtype comp: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: ListFilesAndDirectoriesSegmentResponse or the result of cls(response)
         :rtype: ~azure.storage.fileshare.models.ListFilesAndDirectoriesSegmentResponse
         :raises ~azure.core.exceptions.HttpResponseError:
         """
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -646,7 +616,7 @@ class DirectoryOperations:
         comp: Literal["list"] = kwargs.pop("comp", _params.pop("comp", "list"))
         cls: ClsType[_models.ListFilesAndDirectoriesSegmentResponse] = kwargs.pop("cls", None)
 
-        request = build_list_files_and_directories_segment_request(
+        _request = build_list_files_and_directories_segment_request(
             url=self._config.url,
             prefix=prefix,
             sharesnapshot=sharesnapshot,
@@ -660,16 +630,15 @@ class DirectoryOperations:
             restype=restype,
             comp=comp,
             version=self._config.version,
-            template_url=self.list_files_and_directories_segment.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request = _convert_request(_request)
+        _request.url = self._client.format_url(_request.url)
 
         _stream = False
         pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
@@ -688,11 +657,9 @@ class DirectoryOperations:
         deserialized = self._deserialize("ListFilesAndDirectoriesSegmentResponse", pipeline_response)
 
         if cls:
-            return cls(pipeline_response, deserialized, response_headers)
+            return cls(pipeline_response, deserialized, response_headers)  # type: ignore
 
-        return deserialized
-
-    list_files_and_directories_segment.metadata = {"url": "{url}"}
+        return deserialized  # type: ignore
 
     @distributed_trace_async
     async def list_handles(
@@ -726,15 +693,11 @@ class DirectoryOperations:
         :param recursive: Specifies operation should apply to the directory specified in the URI, its
          files, its subdirectories and their files. Default value is None.
         :type recursive: bool
-        :keyword comp: comp. Default value is "listhandles". Note that overriding this default value
-         may result in unsupported behavior.
-        :paramtype comp: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: ListHandlesResponse or the result of cls(response)
         :rtype: ~azure.storage.fileshare.models.ListHandlesResponse
         :raises ~azure.core.exceptions.HttpResponseError:
         """
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -748,7 +711,7 @@ class DirectoryOperations:
         comp: Literal["listhandles"] = kwargs.pop("comp", _params.pop("comp", "listhandles"))
         cls: ClsType[_models.ListHandlesResponse] = kwargs.pop("cls", None)
 
-        request = build_list_handles_request(
+        _request = build_list_handles_request(
             url=self._config.url,
             marker=marker,
             maxresults=maxresults,
@@ -759,16 +722,15 @@ class DirectoryOperations:
             file_request_intent=self._config.file_request_intent,
             comp=comp,
             version=self._config.version,
-            template_url=self.list_handles.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request = _convert_request(_request)
+        _request.url = self._client.format_url(_request.url)
 
         _stream = False
         pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
@@ -787,11 +749,9 @@ class DirectoryOperations:
         deserialized = self._deserialize("ListHandlesResponse", pipeline_response)
 
         if cls:
-            return cls(pipeline_response, deserialized, response_headers)
+            return cls(pipeline_response, deserialized, response_headers)  # type: ignore
 
-        return deserialized
-
-    list_handles.metadata = {"url": "{url}"}
+        return deserialized  # type: ignore
 
     @distributed_trace_async
     async def force_close_handles(  # pylint: disable=inconsistent-return-statements
@@ -824,15 +784,11 @@ class DirectoryOperations:
         :param recursive: Specifies operation should apply to the directory specified in the URI, its
          files, its subdirectories and their files. Default value is None.
         :type recursive: bool
-        :keyword comp: comp. Default value is "forceclosehandles". Note that overriding this default
-         value may result in unsupported behavior.
-        :paramtype comp: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: None or the result of cls(response)
         :rtype: None
         :raises ~azure.core.exceptions.HttpResponseError:
         """
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -846,7 +802,7 @@ class DirectoryOperations:
         comp: Literal["forceclosehandles"] = kwargs.pop("comp", _params.pop("comp", "forceclosehandles"))
         cls: ClsType[None] = kwargs.pop("cls", None)
 
-        request = build_force_close_handles_request(
+        _request = build_force_close_handles_request(
             url=self._config.url,
             handle_id=handle_id,
             timeout=timeout,
@@ -857,16 +813,15 @@ class DirectoryOperations:
             file_request_intent=self._config.file_request_intent,
             comp=comp,
             version=self._config.version,
-            template_url=self.force_close_handles.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request = _convert_request(_request)
+        _request.url = self._client.format_url(_request.url)
 
         _stream = False
         pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
@@ -889,9 +844,7 @@ class DirectoryOperations:
         )
 
         if cls:
-            return cls(pipeline_response, None, response_headers)
-
-    force_close_handles.metadata = {"url": "{url}"}
+            return cls(pipeline_response, None, response_headers)  # type: ignore
 
     @distributed_trace_async
     async def rename(  # pylint: disable=inconsistent-return-statements
@@ -901,6 +854,7 @@ class DirectoryOperations:
         replace_if_exists: Optional[bool] = None,
         ignore_read_only: Optional[bool] = None,
         file_permission: str = "inherit",
+        file_permission_format: Optional[Union[str, _models.FilePermissionFormat]] = None,
         file_permission_key: Optional[str] = None,
         metadata: Optional[Dict[str, str]] = None,
         source_lease_access_conditions: Optional[_models.SourceLeaseAccessConditions] = None,
@@ -936,6 +890,13 @@ class DirectoryOperations:
          input, it must have owner, group and dacl. Note: Only one of the x-ms-file-permission or
          x-ms-file-permission-key should be specified. Default value is "inherit".
         :type file_permission: str
+        :param file_permission_format: Optional. Available for version 2023-06-01 and later. Specifies
+         the format in which the permission is returned. Acceptable values are SDDL or binary. If
+         x-ms-file-permission-format is unspecified or explicitly set to SDDL, the permission is
+         returned in SDDL format. If x-ms-file-permission-format is explicitly set to binary, the
+         permission is returned as a base64 string representing the binary encoding of the permission.
+         Known values are: "Sddl" and "Binary". Default value is None.
+        :type file_permission_format: str or ~azure.storage.fileshare.models.FilePermissionFormat
         :param file_permission_key: Key of the permission to be set for the directory/file. Note: Only
          one of the x-ms-file-permission or x-ms-file-permission-key should be specified. Default value
          is None.
@@ -951,18 +912,11 @@ class DirectoryOperations:
          ~azure.storage.fileshare.models.DestinationLeaseAccessConditions
         :param copy_file_smb_info: Parameter group. Default value is None.
         :type copy_file_smb_info: ~azure.storage.fileshare.models.CopyFileSmbInfo
-        :keyword restype: restype. Default value is "directory". Note that overriding this default
-         value may result in unsupported behavior.
-        :paramtype restype: str
-        :keyword comp: comp. Default value is "rename". Note that overriding this default value may
-         result in unsupported behavior.
-        :paramtype comp: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: None or the result of cls(response)
         :rtype: None
         :raises ~azure.core.exceptions.HttpResponseError:
         """
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -993,7 +947,7 @@ class DirectoryOperations:
             _file_creation_time = copy_file_smb_info.file_creation_time
             _file_last_write_time = copy_file_smb_info.file_last_write_time
 
-        request = build_rename_request(
+        _request = build_rename_request(
             url=self._config.url,
             rename_source=rename_source,
             timeout=timeout,
@@ -1006,6 +960,7 @@ class DirectoryOperations:
             file_last_write_time=_file_last_write_time,
             file_change_time=_file_change_time,
             file_permission=file_permission,
+            file_permission_format=file_permission_format,
             file_permission_key=file_permission_key,
             metadata=metadata,
             allow_trailing_dot=self._config.allow_trailing_dot,
@@ -1014,16 +969,15 @@ class DirectoryOperations:
             restype=restype,
             comp=comp,
             version=self._config.version,
-            template_url=self.rename.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request = _convert_request(_request)
+        _request.url = self._client.format_url(_request.url)
 
         _stream = False
         pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
@@ -1061,6 +1015,4 @@ class DirectoryOperations:
         response_headers["x-ms-file-parent-id"] = self._deserialize("str", response.headers.get("x-ms-file-parent-id"))
 
         if cls:
-            return cls(pipeline_response, None, response_headers)
-
-    rename.metadata = {"url": "{url}"}
+            return cls(pipeline_response, None, response_headers)  # type: ignore

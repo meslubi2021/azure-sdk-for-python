@@ -15,7 +15,7 @@ from json import (
     dumps,
     loads,
 )
-from typing import Any, BinaryIO, Callable, Dict, Optional, Tuple, TYPE_CHECKING
+from typing import Any, Callable, Dict, IO, Optional, Tuple, TYPE_CHECKING
 from typing import OrderedDict as TypedOrderedDict
 from typing_extensions import Protocol
 
@@ -46,6 +46,10 @@ _GCM_TAG_LENGTH = 16
 
 _ERROR_OBJECT_INVALID = \
     '{0} does not define a complete interface. Value of {1} is either missing or invalid.'
+
+_ERROR_UNSUPPORTED_METHOD_FOR_ENCRYPTION = (
+    'The require_encryption flag is set, but encryption is not supported'
+    ' for this method.')
 
 
 class KeyEncryptionKey(Protocol):
@@ -220,11 +224,11 @@ class GCMBlobEncryptionStream:
     """
     def __init__(
         self, content_encryption_key: bytes,
-        data_stream: BinaryIO,
+        data_stream: IO[bytes],
     ) -> None:
         """
         :param bytes content_encryption_key: The encryption key to use.
-        :param BinaryIO data_stream: The data stream to read data from.
+        :param IO[bytes] data_stream: The data stream to read data from.
         """
         self.content_encryption_key = content_encryption_key
         self.data_stream = data_stream
@@ -261,28 +265,30 @@ class GCMBlobEncryptionStream:
                     # No more data to read
                     break
 
-                self.current = self._encrypt_region(data)
+                self.current = encrypt_data_v2(data, self.nonce_counter, self.content_encryption_key)
+                # IMPORTANT: Must increment the nonce each time.
+                self.nonce_counter += 1
 
         return result.getvalue()
 
-    def _encrypt_region(self, data: bytes) -> bytes:
-        """
-        Encrypt the given region of data using AES-GCM. The result
-        includes the data in the form: nonce + ciphertext + tag.
 
-        :param bytes data: The data to encrypt.
-        :return: The encrypted bytes.
-        :rtype: bytes
-        """
-        # Each region MUST use a different nonce
-        nonce = self.nonce_counter.to_bytes(_GCM_NONCE_LENGTH, 'big')
-        self.nonce_counter += 1
+def encrypt_data_v2(data: bytes, nonce: int, key: bytes) -> bytes:
+    """
+    Encrypts the given data using the given nonce and key using AES-GCM.
+    The result includes the data in the form: nonce + ciphertext + tag.
 
-        aesgcm = AESGCM(self.content_encryption_key)
+    :param bytes data: The raw data to encrypt.
+    :param int nonce: The nonce to use for encryption.
+    :param bytes key: The encryption key to use for encryption.
+    :return: The encrypted bytes in the form: nonce + ciphertext + tag.
+    :rtype: bytes
+    """
+    nonce_bytes = nonce.to_bytes(_GCM_NONCE_LENGTH, 'big')
+    aesgcm = AESGCM(key)
 
-        # Returns ciphertext + tag
-        ciphertext_with_tag = aesgcm.encrypt(nonce, data, None)
-        return nonce + ciphertext_with_tag
+    # Returns ciphertext + tag
+    ciphertext_with_tag = aesgcm.encrypt(nonce_bytes, data, None)
+    return nonce_bytes + ciphertext_with_tag
 
 
 def is_encryption_v2(encryption_data: Optional[_EncryptionData]) -> bool:
@@ -355,7 +361,7 @@ def get_adjusted_upload_size(length: int, encryption_version: str) -> int:
 def get_adjusted_download_range_and_offset(
         start: int,
         end: int,
-        length: int,
+        length: Optional[int],
         encryption_data: Optional[_EncryptionData]) -> Tuple[Tuple[int, int], Tuple[int, int]]:
     """
     Gets the new download range and offsets into the decrypted data for
@@ -372,7 +378,7 @@ def get_adjusted_download_range_and_offset(
 
     :param int start: The user-requested start index.
     :param int end: The user-requested end index.
-    :param int length: The user-requested length. Only used for V1.
+    :param Optional[int] length: The user-requested length. Only used for V1.
     :param Optional[_EncryptionData] encryption_data: The encryption data to determine version and sizes.
     :return: (new start, new end), (start offset, end offset)
     :rtype: Tuple[Tuple[int, int], Tuple[int, int]]
@@ -449,17 +455,20 @@ def parse_encryption_data(metadata: Dict[str, Any]) -> Optional[_EncryptionData]
         return None
 
 
-def adjust_blob_size_for_encryption(size: int, encryption_data: _EncryptionData) -> int:
+def adjust_blob_size_for_encryption(size: int, encryption_data: Optional[_EncryptionData]) -> int:
     """
     Adjusts the given blob size for encryption by subtracting the size of
     the encryption data (nonce + tag). This only has an affect for encryption V2.
 
     :param int size: The original blob size.
-    :param _EncryptionData encryption_data: The encryption data to determine version and sizes.
+    :param Optional[_EncryptionData] encryption_data: The encryption data to determine version and sizes.
     :return: The new blob size.
     :rtype: int
     """
-    if is_encryption_v2(encryption_data) and encryption_data.encrypted_region_info is not None:
+    if (encryption_data is not None and
+        encryption_data.encrypted_region_info is not None and
+        is_encryption_v2(encryption_data)):
+
         nonce_length = encryption_data.encrypted_region_info.nonce_length
         data_length = encryption_data.encrypted_region_info.data_length
         tag_length = encryption_data.encrypted_region_info.tag_length
@@ -834,7 +843,7 @@ def generate_blob_encryption_data(
 
 def decrypt_blob(  # pylint: disable=too-many-locals,too-many-statements
         require_encryption: bool,
-        key_encryption_key: KeyEncryptionKey,
+        key_encryption_key: Optional[KeyEncryptionKey],
         key_resolver: Optional[Callable[[str], KeyEncryptionKey]],
         content: bytes,
         start_offset: int,
@@ -846,7 +855,7 @@ def decrypt_blob(  # pylint: disable=too-many-locals,too-many-statements
 
     :param bool require_encryption:
         Whether the calling blob service requires objects to be decrypted.
-    :param KeyEncryptionKey key_encryption_key:
+    :param Optional[KeyEncryptionKey] key_encryption_key:
         The user-provided key-encryption-key. Must implement the following methods:
         wrap_key(key)
             - Wraps the specified key using an algorithm of the user's choice.
@@ -857,7 +866,7 @@ def decrypt_blob(  # pylint: disable=too-many-locals,too-many-statements
     :param key_resolver:
         The user-provided key resolver. Uses the kid string to return a key-encryption-key
         implementing the interface defined above.
-    :paramtype key_resolver: Optional[Callable[[str], KeyEncryptionKey]]
+    :type key_resolver: Optional[Callable[[str], KeyEncryptionKey]]
     :param bytes content:
         The encrypted blob content.
     :param int start_offset:

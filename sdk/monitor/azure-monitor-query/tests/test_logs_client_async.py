@@ -8,7 +8,7 @@ from datetime import timedelta
 import pytest
 
 from azure.core.exceptions import HttpResponseError
-from azure.monitor.query import LogsBatchQuery, LogsQueryError, LogsTable, LogsQueryResult, LogsTableRow
+from azure.monitor.query import LogsBatchQuery, LogsQueryError, LogsTable, LogsQueryResult, LogsTableRow, LogsQueryStatus
 from azure.monitor.query.aio import LogsQueryClient
 
 from base_testcase import AzureMonitorQueryLogsTestCase
@@ -29,6 +29,7 @@ class TestLogsClientAsync(AzureMonitorQueryLogsTestCase):
             response = await client.query_workspace(monitor_info['workspace_id'], query, timespan=None)
 
             assert response is not None
+            assert response.status == LogsQueryStatus.SUCCESS
             assert response.tables is not None
 
     @pytest.mark.asyncio
@@ -55,7 +56,8 @@ class TestLogsClientAsync(AzureMonitorQueryLogsTestCase):
                     monitor_info['workspace_id'],
                     "range x from 1 to 1000000000000000 step 1 | count",
                     timespan=None,
-                    server_timeout=1,
+                    server_timeout=2,
+                    retry_total=0,
                 )
 
         assert 'Gateway timeout' in e.value.message

@@ -17,8 +17,8 @@ from azure.core.credentials import AccessToken
 from azure.core.exceptions import ServiceRequestError
 from azure.core.pipeline import AsyncPipeline
 from azure.core.pipeline.policies import SansIOHTTPPolicy
-from azure.core.pipeline.transport import HttpRequest
-from azure.identity.aio import ClientSecretCredential
+from azure.core.rest import HttpRequest
+from azure.identity.aio import AzureCliCredential, AzurePowerShellCredential, ClientSecretCredential
 from azure.keyvault.keys._shared import AsyncChallengeAuthPolicy,HttpChallenge, HttpChallengeCache
 from azure.keyvault.keys._shared.client_base import DEFAULT_VERSION
 from azure.keyvault.keys.aio import KeyClient
@@ -44,14 +44,20 @@ class TestChallengeAuth(KeyVaultTestCase):
 
         client_id = os.environ.get("KEYVAULT_CLIENT_ID")
         client_secret = os.environ.get("KEYVAULT_CLIENT_SECRET")
-        if not (client_id and client_secret):
-            pytest.skip("Values for KEYVAULT_CLIENT_ID and KEYVAULT_CLIENT_SECRET are required")
 
         # we set up a client for this method so it gets awaited, but we actually want to create a new client
         # this new client should use a credential with an initially fake tenant ID and still succeed with a real request
-        credential = ClientSecretCredential(
-            tenant_id=str(uuid4()), client_id=client_id, client_secret=client_secret, additionally_allowed_tenants="*"
-        )
+        if os.environ.get("AZURE_TEST_USE_PWSH_AUTH") == "true":
+            credential = AzurePowerShellCredential(tenant_id=str(uuid4()), additionally_allowed_tenants="*")
+        elif os.environ.get("AZURE_TEST_USE_CLI_AUTH") == "true":
+            credential = AzureCliCredential(tenant_id=str(uuid4()), additionally_allowed_tenants="*")
+        else:
+            credential = ClientSecretCredential(
+                tenant_id=str(uuid4()),
+                client_id=client_id,
+                client_secret=client_secret,
+                additionally_allowed_tenants="*",
+            )
         managed_hsm_url = kwargs.pop("managed_hsm_url", None)
         keyvault_url = kwargs.pop("vault_url", None)
         vault_url = managed_hsm_url if is_hsm else keyvault_url
@@ -115,7 +121,7 @@ async def test_scope():
             assert scopes[0] == expected_scope
             return AccessToken(expected_token, 0)
 
-        credential = Mock(get_token=Mock(wraps=get_token))
+        credential = Mock(spec_set=["get_token"], get_token=Mock(wraps=get_token))
         pipeline = AsyncPipeline(
             policies=[AsyncChallengeAuthPolicy(credential=credential)], transport=Mock(send=send)
         )
@@ -176,7 +182,7 @@ async def test_tenant():
             assert kwargs.get("tenant_id") == expected_tenant
             return AccessToken(expected_token, 0)
 
-        credential = Mock(get_token=Mock(wraps=get_token))
+        credential = Mock(spec_set=["get_token"], get_token=Mock(wraps=get_token))
         pipeline = AsyncPipeline(
             policies=[AsyncChallengeAuthPolicy(credential=credential)], transport=Mock(send=send)
         )
@@ -231,7 +237,7 @@ async def test_adfs():
             assert "tenant_id" not in kwargs
             return AccessToken(expected_token, 0)
 
-        credential = Mock(get_token=Mock(wraps=get_token))
+        credential = Mock(spec_set=["get_token"], get_token=Mock(wraps=get_token))
         policy = AsyncChallengeAuthPolicy(credential=credential)
         pipeline = AsyncPipeline(policies=[policy], transport=Mock(send=send))
         request = HttpRequest("POST", get_random_url())
@@ -302,7 +308,7 @@ async def test_policy_updates_cache():
     async def get_token(*_, **__):
         return token
 
-    credential = Mock(get_token=Mock(wraps=get_token))
+    credential = Mock(spec_set=["get_token"], get_token=Mock(wraps=get_token))
     pipeline = AsyncPipeline(policies=[AsyncChallengeAuthPolicy(credential=credential)], transport=transport)
 
     # policy should complete and cache the first challenge and access token
@@ -334,7 +340,7 @@ async def test_token_expiration():
     async def get_token(*_, **__):
         return token
 
-    credential = Mock(get_token=Mock(wraps=get_token))
+    credential = Mock(spec_set=["get_token"], get_token=Mock(wraps=get_token))
     transport = async_validating_transport(
         requests=[
             Request(),
@@ -373,7 +379,7 @@ async def test_preserves_options_and_headers():
     async def get_token(*_, **__):
         return AccessToken(token, 0)
 
-    credential = Mock(get_token=Mock(wraps=get_token))
+    credential = Mock(spec_set=["get_token"], get_token=Mock(wraps=get_token))
 
     transport = async_validating_transport(
         requests=[Request()] * 2 + [Request(required_headers={"Authorization": "Bearer " + token})],
@@ -427,7 +433,7 @@ async def test_verify_challenge_resource_matches(verify_challenge_resource):
     async def get_token(*_, **__):
         return AccessToken(token, 0)
 
-    credential = Mock(get_token=Mock(wraps=get_token))
+    credential = Mock(spec_set=["get_token"], get_token=Mock(wraps=get_token))
 
     transport = async_validating_transport(
         requests=[Request(), Request(required_headers={"Authorization": f"Bearer {token}"})],
@@ -480,7 +486,7 @@ async def test_verify_challenge_resource_valid(verify_challenge_resource):
     async def get_token(*_, **__):
         return AccessToken(token, 0)
 
-    credential = Mock(get_token=Mock(wraps=get_token))
+    credential = Mock(spec_set=["get_token"], get_token=Mock(wraps=get_token))
 
     transport = async_validating_transport(
         requests=[Request(), Request(required_headers={"Authorization": f"Bearer {token}"})],

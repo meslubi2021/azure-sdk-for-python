@@ -1,4 +1,4 @@
-# pylint: disable=too-many-lines
+# pylint: disable=too-many-lines,too-many-statements
 # coding=utf-8
 # --------------------------------------------------------------------------
 # Copyright (c) Microsoft Corporation. All rights reserved.
@@ -7,7 +7,7 @@
 # Changes may cause incorrect behavior and will be lost if the code is regenerated.
 # --------------------------------------------------------------------------
 import sys
-from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Type, TypeVar, Union
 
 from azure.core.exceptions import (
     ClientAuthenticationError,
@@ -27,10 +27,10 @@ from .. import models as _models
 from .._serialization import Serializer
 from .._vendor import _convert_request
 
-if sys.version_info >= (3, 8):
-    from typing import Literal  # pylint: disable=no-name-in-module, ungrouped-imports
+if sys.version_info >= (3, 9):
+    from collections.abc import MutableMapping
 else:
-    from typing_extensions import Literal  # type: ignore  # pylint: disable=ungrouped-imports
+    from typing import MutableMapping  # type: ignore  # pylint: disable=ungrouped-imports
 T = TypeVar("T")
 ClsType = Optional[Callable[[PipelineResponse[HttpRequest, HttpResponse], T, Dict[str, Any]], Any]]
 
@@ -39,7 +39,12 @@ _SERIALIZER.client_side_validation = False
 
 
 def build_set_properties_request(
-    url: str, *, content: Any, timeout: Optional[int] = None, **kwargs: Any
+    url: str,
+    *,
+    content: Any,
+    timeout: Optional[int] = None,
+    file_request_intent: Optional[Union[str, _models.ShareTokenIntent]] = None,
+    **kwargs: Any
 ) -> HttpRequest:
     _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
     _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
@@ -47,7 +52,7 @@ def build_set_properties_request(
     restype: Literal["service"] = kwargs.pop("restype", _params.pop("restype", "service"))
     comp: Literal["properties"] = kwargs.pop("comp", _params.pop("comp", "properties"))
     content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-    version: Literal["2023-01-03"] = kwargs.pop("version", _headers.pop("x-ms-version", "2023-01-03"))
+    version: Literal["2024-11-04"] = kwargs.pop("version", _headers.pop("x-ms-version", "2024-11-04"))
     accept = _headers.pop("Accept", "application/xml")
 
     # Construct URL
@@ -66,6 +71,8 @@ def build_set_properties_request(
 
     # Construct headers
     _headers["x-ms-version"] = _SERIALIZER.header("version", version, "str")
+    if file_request_intent is not None:
+        _headers["x-ms-file-request-intent"] = _SERIALIZER.header("file_request_intent", file_request_intent, "str")
     if content_type is not None:
         _headers["Content-Type"] = _SERIALIZER.header("content_type", content_type, "str")
     _headers["Accept"] = _SERIALIZER.header("accept", accept, "str")
@@ -73,13 +80,19 @@ def build_set_properties_request(
     return HttpRequest(method="PUT", url=_url, params=_params, headers=_headers, content=content, **kwargs)
 
 
-def build_get_properties_request(url: str, *, timeout: Optional[int] = None, **kwargs: Any) -> HttpRequest:
+def build_get_properties_request(
+    url: str,
+    *,
+    timeout: Optional[int] = None,
+    file_request_intent: Optional[Union[str, _models.ShareTokenIntent]] = None,
+    **kwargs: Any
+) -> HttpRequest:
     _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
     _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
 
     restype: Literal["service"] = kwargs.pop("restype", _params.pop("restype", "service"))
     comp: Literal["properties"] = kwargs.pop("comp", _params.pop("comp", "properties"))
-    version: Literal["2023-01-03"] = kwargs.pop("version", _headers.pop("x-ms-version", "2023-01-03"))
+    version: Literal["2024-11-04"] = kwargs.pop("version", _headers.pop("x-ms-version", "2024-11-04"))
     accept = _headers.pop("Accept", "application/xml")
 
     # Construct URL
@@ -98,6 +111,8 @@ def build_get_properties_request(url: str, *, timeout: Optional[int] = None, **k
 
     # Construct headers
     _headers["x-ms-version"] = _SERIALIZER.header("version", version, "str")
+    if file_request_intent is not None:
+        _headers["x-ms-file-request-intent"] = _SERIALIZER.header("file_request_intent", file_request_intent, "str")
     _headers["Accept"] = _SERIALIZER.header("accept", accept, "str")
 
     return HttpRequest(method="GET", url=_url, params=_params, headers=_headers, **kwargs)
@@ -111,13 +126,14 @@ def build_list_shares_segment_request(
     maxresults: Optional[int] = None,
     include: Optional[List[Union[str, _models.ListSharesIncludeType]]] = None,
     timeout: Optional[int] = None,
+    file_request_intent: Optional[Union[str, _models.ShareTokenIntent]] = None,
     **kwargs: Any
 ) -> HttpRequest:
     _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
     _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
 
     comp: Literal["list"] = kwargs.pop("comp", _params.pop("comp", "list"))
-    version: Literal["2023-01-03"] = kwargs.pop("version", _headers.pop("x-ms-version", "2023-01-03"))
+    version: Literal["2024-11-04"] = kwargs.pop("version", _headers.pop("x-ms-version", "2024-11-04"))
     accept = _headers.pop("Accept", "application/xml")
 
     # Construct URL
@@ -143,6 +159,8 @@ def build_list_shares_segment_request(
 
     # Construct headers
     _headers["x-ms-version"] = _SERIALIZER.header("version", version, "str")
+    if file_request_intent is not None:
+        _headers["x-ms-file-request-intent"] = _SERIALIZER.header("file_request_intent", file_request_intent, "str")
     _headers["Accept"] = _SERIALIZER.header("accept", accept, "str")
 
     return HttpRequest(method="GET", url=_url, params=_params, headers=_headers, **kwargs)
@@ -181,18 +199,11 @@ class ServiceOperations:
          href="https://docs.microsoft.com/en-us/rest/api/storageservices/Setting-Timeouts-for-File-Service-Operations?redirectedfrom=MSDN">Setting
          Timeouts for File Service Operations.</a>`. Default value is None.
         :type timeout: int
-        :keyword restype: restype. Default value is "service". Note that overriding this default value
-         may result in unsupported behavior.
-        :paramtype restype: str
-        :keyword comp: comp. Default value is "properties". Note that overriding this default value may
-         result in unsupported behavior.
-        :paramtype comp: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: None or the result of cls(response)
         :rtype: None
         :raises ~azure.core.exceptions.HttpResponseError:
         """
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -210,24 +221,24 @@ class ServiceOperations:
 
         _content = self._serialize.body(storage_service_properties, "StorageServiceProperties", is_xml=True)
 
-        request = build_set_properties_request(
+        _request = build_set_properties_request(
             url=self._config.url,
             timeout=timeout,
+            file_request_intent=self._config.file_request_intent,
             restype=restype,
             comp=comp,
             content_type=content_type,
             version=self._config.version,
             content=_content,
-            template_url=self.set_properties.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request = _convert_request(_request)
+        _request.url = self._client.format_url(_request.url)
 
         _stream = False
         pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
@@ -242,9 +253,7 @@ class ServiceOperations:
         response_headers["x-ms-version"] = self._deserialize("str", response.headers.get("x-ms-version"))
 
         if cls:
-            return cls(pipeline_response, None, response_headers)
-
-    set_properties.metadata = {"url": "{url}"}
+            return cls(pipeline_response, None, response_headers)  # type: ignore
 
     @distributed_trace
     def get_properties(self, timeout: Optional[int] = None, **kwargs: Any) -> _models.StorageServiceProperties:
@@ -256,18 +265,11 @@ class ServiceOperations:
          href="https://docs.microsoft.com/en-us/rest/api/storageservices/Setting-Timeouts-for-File-Service-Operations?redirectedfrom=MSDN">Setting
          Timeouts for File Service Operations.</a>`. Default value is None.
         :type timeout: int
-        :keyword restype: restype. Default value is "service". Note that overriding this default value
-         may result in unsupported behavior.
-        :paramtype restype: str
-        :keyword comp: comp. Default value is "properties". Note that overriding this default value may
-         result in unsupported behavior.
-        :paramtype comp: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: StorageServiceProperties or the result of cls(response)
         :rtype: ~azure.storage.fileshare.models.StorageServiceProperties
         :raises ~azure.core.exceptions.HttpResponseError:
         """
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -282,22 +284,22 @@ class ServiceOperations:
         comp: Literal["properties"] = kwargs.pop("comp", _params.pop("comp", "properties"))
         cls: ClsType[_models.StorageServiceProperties] = kwargs.pop("cls", None)
 
-        request = build_get_properties_request(
+        _request = build_get_properties_request(
             url=self._config.url,
             timeout=timeout,
+            file_request_intent=self._config.file_request_intent,
             restype=restype,
             comp=comp,
             version=self._config.version,
-            template_url=self.get_properties.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request = _convert_request(_request)
+        _request.url = self._client.format_url(_request.url)
 
         _stream = False
         pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
@@ -314,11 +316,9 @@ class ServiceOperations:
         deserialized = self._deserialize("StorageServiceProperties", pipeline_response)
 
         if cls:
-            return cls(pipeline_response, deserialized, response_headers)
+            return cls(pipeline_response, deserialized, response_headers)  # type: ignore
 
-        return deserialized
-
-    get_properties.metadata = {"url": "{url}"}
+        return deserialized  # type: ignore
 
     @distributed_trace
     def list_shares_segment(
@@ -353,15 +353,11 @@ class ServiceOperations:
          href="https://docs.microsoft.com/en-us/rest/api/storageservices/Setting-Timeouts-for-File-Service-Operations?redirectedfrom=MSDN">Setting
          Timeouts for File Service Operations.</a>`. Default value is None.
         :type timeout: int
-        :keyword comp: comp. Default value is "list". Note that overriding this default value may
-         result in unsupported behavior.
-        :paramtype comp: str
-        :keyword callable cls: A custom type or function that will be passed the direct response
         :return: ListSharesResponse or the result of cls(response)
         :rtype: ~azure.storage.fileshare.models.ListSharesResponse
         :raises ~azure.core.exceptions.HttpResponseError:
         """
-        error_map = {
+        error_map: MutableMapping[int, Type[HttpResponseError]] = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
             409: ResourceExistsError,
@@ -375,25 +371,25 @@ class ServiceOperations:
         comp: Literal["list"] = kwargs.pop("comp", _params.pop("comp", "list"))
         cls: ClsType[_models.ListSharesResponse] = kwargs.pop("cls", None)
 
-        request = build_list_shares_segment_request(
+        _request = build_list_shares_segment_request(
             url=self._config.url,
             prefix=prefix,
             marker=marker,
             maxresults=maxresults,
             include=include,
             timeout=timeout,
+            file_request_intent=self._config.file_request_intent,
             comp=comp,
             version=self._config.version,
-            template_url=self.list_shares_segment.metadata["url"],
             headers=_headers,
             params=_params,
         )
-        request = _convert_request(request)
-        request.url = self._client.format_url(request.url)
+        _request = _convert_request(_request)
+        _request.url = self._client.format_url(_request.url)
 
         _stream = False
         pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
-            request, stream=_stream, **kwargs
+            _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
@@ -410,8 +406,6 @@ class ServiceOperations:
         deserialized = self._deserialize("ListSharesResponse", pipeline_response)
 
         if cls:
-            return cls(pipeline_response, deserialized, response_headers)
+            return cls(pipeline_response, deserialized, response_headers)  # type: ignore
 
-        return deserialized
-
-    list_shares_segment.metadata = {"url": "{url}"}
+        return deserialized  # type: ignore

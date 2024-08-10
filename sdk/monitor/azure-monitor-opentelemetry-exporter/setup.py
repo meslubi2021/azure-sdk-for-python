@@ -6,6 +6,7 @@
 # license information.
 # --------------------------------------------------------------------------
 
+# cSpell:disable
 
 import os
 import re
@@ -64,6 +65,7 @@ setup(
         'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: 3.10',
         'Programming Language :: Python :: 3.11',
+        'Programming Language :: Python :: 3.12',
         'License :: OSI Approved :: MIT License',
     ],
     zip_safe=False,
@@ -81,11 +83,12 @@ setup(
     },
     python_requires=">=3.8",
     install_requires=[
-        "azure-core<2.0.0,>=1.23.0",
+        "azure-core<2.0.0,>=1.28.0",
         "fixedint==0.1.6",
         "msrest>=0.6.10",
-        "opentelemetry-api~=1.21",
-        "opentelemetry-sdk~=1.21",
+        "opentelemetry-api~=1.26",
+        "opentelemetry-sdk~=1.26",
+        "psutil~=5.9",
     ],
     entry_points={
         "opentelemetry_traces_exporter": [
@@ -102,3 +105,5 @@ setup(
         ]
     }
 )
+
+# cSpell:enable

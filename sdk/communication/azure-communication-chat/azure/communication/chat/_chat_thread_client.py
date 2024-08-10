@@ -3,7 +3,7 @@
 # Licensed under the MIT License. See License.txt in the project root for
 # license information.
 # --------------------------------------------------------------------------
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, List, Optional, Tuple
 
 from urllib.parse import urlparse
 
@@ -36,7 +36,6 @@ from ._version import SDK_MONIKER
 
 if TYPE_CHECKING:
     # pylint: disable=unused-import,ungrouped-imports
-    from typing import Any, Callable, Dict, Generic, List, Optional, TypeVar, Union, Tuple
     from datetime import datetime
     from azure.core.paging import ItemPaged
 
@@ -373,7 +372,7 @@ class ChatThreadClient(object): # pylint: disable=client-accepts-api-version-key
 
         :keyword int results_per_page: The maximum number of messages to be returned per page.
         :keyword ~datetime.datetime start_time: The earliest point in time to get messages up to.
-        The timestamp should be in RFC3339 format: ``yyyy-MM-ddTHH:mm:ssZ``.
+            The timestamp should be in RFC3339 format: ``yyyy-MM-ddTHH:mm:ssZ``.
         :return: An iterator like instance of ChatMessage
         :rtype: ~azure.core.paging.ItemPaged[~azure.communication.chat.ChatMessage]
         :raises: ~azure.core.exceptions.HttpResponseError, ValueError

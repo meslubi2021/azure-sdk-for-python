@@ -8,9 +8,12 @@
 
 from copy import deepcopy
 from typing import Any, Awaitable, TYPE_CHECKING
+from typing_extensions import Self
 
+from azure.core.pipeline import policies
 from azure.core.rest import AsyncHttpResponse, HttpRequest
 from azure.mgmt.core import AsyncARMPipelineClient
+from azure.mgmt.core.policies import AsyncARMAutoResourceProviderRegistrationPolicy
 
 from .. import models as _models
 from .._serialization import Deserializer, Serializer
@@ -30,6 +33,10 @@ from .operations import (
     LocationBasedCapabilitiesOperations,
     LocationBasedCapabilitySetOperations,
     LogFilesOperations,
+    LongRunningBackupOperations,
+    LongRunningBackupsOperations,
+    MaintenancesOperations,
+    OperationProgressOperations,
     OperationResultsOperations,
     Operations,
     ReplicasOperations,
@@ -55,6 +62,12 @@ class MySQLManagementClient:  # pylint: disable=client-accepts-api-version-keywo
     :ivar backup_and_export: BackupAndExportOperations operations
     :vartype backup_and_export:
      azure.mgmt.rdbms.mysql_flexibleservers.aio.operations.BackupAndExportOperations
+    :ivar long_running_backup: LongRunningBackupOperations operations
+    :vartype long_running_backup:
+     azure.mgmt.rdbms.mysql_flexibleservers.aio.operations.LongRunningBackupOperations
+    :ivar long_running_backups: LongRunningBackupsOperations operations
+    :vartype long_running_backups:
+     azure.mgmt.rdbms.mysql_flexibleservers.aio.operations.LongRunningBackupsOperations
     :ivar configurations: ConfigurationsOperations operations
     :vartype configurations:
      azure.mgmt.rdbms.mysql_flexibleservers.aio.operations.ConfigurationsOperations
@@ -63,13 +76,6 @@ class MySQLManagementClient:  # pylint: disable=client-accepts-api-version-keywo
     :ivar firewall_rules: FirewallRulesOperations operations
     :vartype firewall_rules:
      azure.mgmt.rdbms.mysql_flexibleservers.aio.operations.FirewallRulesOperations
-    :ivar servers: ServersOperations operations
-    :vartype servers: azure.mgmt.rdbms.mysql_flexibleservers.aio.operations.ServersOperations
-    :ivar replicas: ReplicasOperations operations
-    :vartype replicas: azure.mgmt.rdbms.mysql_flexibleservers.aio.operations.ReplicasOperations
-    :ivar servers_migration: ServersMigrationOperations operations
-    :vartype servers_migration:
-     azure.mgmt.rdbms.mysql_flexibleservers.aio.operations.ServersMigrationOperations
     :ivar log_files: LogFilesOperations operations
     :vartype log_files: azure.mgmt.rdbms.mysql_flexibleservers.aio.operations.LogFilesOperations
     :ivar location_based_capabilities: LocationBasedCapabilitiesOperations operations
@@ -91,11 +97,24 @@ class MySQLManagementClient:  # pylint: disable=client-accepts-api-version-keywo
     :ivar operation_results: OperationResultsOperations operations
     :vartype operation_results:
      azure.mgmt.rdbms.mysql_flexibleservers.aio.operations.OperationResultsOperations
+    :ivar operation_progress: OperationProgressOperations operations
+    :vartype operation_progress:
+     azure.mgmt.rdbms.mysql_flexibleservers.aio.operations.OperationProgressOperations
     :ivar get_private_dns_zone_suffix: GetPrivateDnsZoneSuffixOperations operations
     :vartype get_private_dns_zone_suffix:
      azure.mgmt.rdbms.mysql_flexibleservers.aio.operations.GetPrivateDnsZoneSuffixOperations
     :ivar operations: Operations operations
     :vartype operations: azure.mgmt.rdbms.mysql_flexibleservers.aio.operations.Operations
+    :ivar maintenances: MaintenancesOperations operations
+    :vartype maintenances:
+     azure.mgmt.rdbms.mysql_flexibleservers.aio.operations.MaintenancesOperations
+    :ivar servers: ServersOperations operations
+    :vartype servers: azure.mgmt.rdbms.mysql_flexibleservers.aio.operations.ServersOperations
+    :ivar replicas: ReplicasOperations operations
+    :vartype replicas: azure.mgmt.rdbms.mysql_flexibleservers.aio.operations.ReplicasOperations
+    :ivar servers_migration: ServersMigrationOperations operations
+    :vartype servers_migration:
+     azure.mgmt.rdbms.mysql_flexibleservers.aio.operations.ServersMigrationOperations
     :ivar advanced_threat_protection_settings: AdvancedThreatProtectionSettingsOperations
      operations
     :vartype advanced_threat_protection_settings:
@@ -120,7 +139,25 @@ class MySQLManagementClient:  # pylint: disable=client-accepts-api-version-keywo
         self._config = MySQLManagementClientConfiguration(
             credential=credential, subscription_id=subscription_id, **kwargs
         )
-        self._client: AsyncARMPipelineClient = AsyncARMPipelineClient(base_url=base_url, config=self._config, **kwargs)
+        _policies = kwargs.pop("policies", None)
+        if _policies is None:
+            _policies = [
+                policies.RequestIdPolicy(**kwargs),
+                self._config.headers_policy,
+                self._config.user_agent_policy,
+                self._config.proxy_policy,
+                policies.ContentDecodePolicy(**kwargs),
+                AsyncARMAutoResourceProviderRegistrationPolicy(),
+                self._config.redirect_policy,
+                self._config.retry_policy,
+                self._config.authentication_policy,
+                self._config.custom_hook_policy,
+                self._config.logging_policy,
+                policies.DistributedTracingPolicy(**kwargs),
+                policies.SensitiveHeaderCleanupPolicy(**kwargs) if self._config.redirect_policy else None,
+                self._config.http_logging_policy,
+            ]
+        self._client: AsyncARMPipelineClient = AsyncARMPipelineClient(base_url=base_url, policies=_policies, **kwargs)
 
         client_models = {k: v for k, v in _models.__dict__.items() if isinstance(v, type)}
         self._serialize = Serializer(client_models)
@@ -133,14 +170,15 @@ class MySQLManagementClient:  # pylint: disable=client-accepts-api-version-keywo
         self.backup_and_export = BackupAndExportOperations(
             self._client, self._config, self._serialize, self._deserialize
         )
+        self.long_running_backup = LongRunningBackupOperations(
+            self._client, self._config, self._serialize, self._deserialize
+        )
+        self.long_running_backups = LongRunningBackupsOperations(
+            self._client, self._config, self._serialize, self._deserialize
+        )
         self.configurations = ConfigurationsOperations(self._client, self._config, self._serialize, self._deserialize)
         self.databases = DatabasesOperations(self._client, self._config, self._serialize, self._deserialize)
         self.firewall_rules = FirewallRulesOperations(self._client, self._config, self._serialize, self._deserialize)
-        self.servers = ServersOperations(self._client, self._config, self._serialize, self._deserialize)
-        self.replicas = ReplicasOperations(self._client, self._config, self._serialize, self._deserialize)
-        self.servers_migration = ServersMigrationOperations(
-            self._client, self._config, self._serialize, self._deserialize
-        )
         self.log_files = LogFilesOperations(self._client, self._config, self._serialize, self._deserialize)
         self.location_based_capabilities = LocationBasedCapabilitiesOperations(
             self._client, self._config, self._serialize, self._deserialize
@@ -160,15 +198,26 @@ class MySQLManagementClient:  # pylint: disable=client-accepts-api-version-keywo
         self.operation_results = OperationResultsOperations(
             self._client, self._config, self._serialize, self._deserialize
         )
+        self.operation_progress = OperationProgressOperations(
+            self._client, self._config, self._serialize, self._deserialize
+        )
         self.get_private_dns_zone_suffix = GetPrivateDnsZoneSuffixOperations(
             self._client, self._config, self._serialize, self._deserialize
         )
         self.operations = Operations(self._client, self._config, self._serialize, self._deserialize)
+        self.maintenances = MaintenancesOperations(self._client, self._config, self._serialize, self._deserialize)
+        self.servers = ServersOperations(self._client, self._config, self._serialize, self._deserialize)
+        self.replicas = ReplicasOperations(self._client, self._config, self._serialize, self._deserialize)
+        self.servers_migration = ServersMigrationOperations(
+            self._client, self._config, self._serialize, self._deserialize
+        )
         self.advanced_threat_protection_settings = AdvancedThreatProtectionSettingsOperations(
             self._client, self._config, self._serialize, self._deserialize
         )
 
-    def _send_request(self, request: HttpRequest, **kwargs: Any) -> Awaitable[AsyncHttpResponse]:
+    def _send_request(
+        self, request: HttpRequest, *, stream: bool = False, **kwargs: Any
+    ) -> Awaitable[AsyncHttpResponse]:
         """Runs the network request through the client's chained policies.
 
         >>> from azure.core.rest import HttpRequest
@@ -188,12 +237,12 @@ class MySQLManagementClient:  # pylint: disable=client-accepts-api-version-keywo
 
         request_copy = deepcopy(request)
         request_copy.url = self._client.format_url(request_copy.url)
-        return self._client.send_request(request_copy, **kwargs)
+        return self._client.send_request(request_copy, stream=stream, **kwargs)  # type: ignore
 
     async def close(self) -> None:
         await self._client.close()
 
-    async def __aenter__(self) -> "MySQLManagementClient":
+    async def __aenter__(self) -> Self:
         await self._client.__aenter__()
         return self
 

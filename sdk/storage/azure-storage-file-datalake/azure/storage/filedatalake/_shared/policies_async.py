@@ -13,13 +13,13 @@ from typing import Any, Dict, TYPE_CHECKING
 from azure.core.exceptions import AzureError
 from azure.core.pipeline.policies import AsyncBearerTokenCredentialPolicy, AsyncHTTPPolicy
 
-from .authentication import StorageHttpChallenge
+from .authentication import AzureSigningError, StorageHttpChallenge
 from .constants import DEFAULT_OAUTH_SCOPE
 from .policies import is_retry, StorageRetryPolicy
 
 if TYPE_CHECKING:
     from azure.core.credentials_async import AsyncTokenCredential
-    from azure.core.pipeline.transport import (  # pylint: disable=non-abstract-transport-import
+    from azure.core.pipeline import (  # pylint: disable=non-abstract-transport-import
         PipelineRequest,
         PipelineResponse
     )
@@ -127,6 +127,8 @@ class AsyncStorageRetryPolicy(StorageRetryPolicy):
                         continue
                 break
             except AzureError as err:
+                if isinstance(err, AzureSigningError):
+                    raise
                 retries_remaining = self.increment(
                     retry_settings, request=request.http_request, error=err)
                 if retries_remaining:
@@ -195,7 +197,7 @@ class ExponentialRetry(AsyncStorageRetryPolicy):
         """
         Calculates how long to sleep before retrying.
 
-        :param Dict[str, Any]] settings: The configurable values pertaining to the backoff time.
+        :param dict[str, Any]] settings: The configurable values pertaining to the backoff time.
         :return:
             An integer indicating how long to wait before retrying the request,
             or None to indicate no retry should be performed.
@@ -247,7 +249,7 @@ class LinearRetry(AsyncStorageRetryPolicy):
         """
         Calculates how long to sleep before retrying.
 
-        :param Dict[str, Any]] settings: The configurable values pertaining to the backoff time.
+        :param dict[str, Any]] settings: The configurable values pertaining to the backoff time.
         :return:
             An integer indicating how long to wait before retrying the request,
             or None to indicate no retry should be performed.

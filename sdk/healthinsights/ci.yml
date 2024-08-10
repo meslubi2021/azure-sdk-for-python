@@ -30,10 +30,8 @@ extends:
     ServiceDirectory: healthinsights
     TestProxy: true
     Artifacts:
-    - name: azure-healthinsights-cancerprofiling
-      safeName: azurehealthinsightscancerprofiling
+
+    - name: azure-healthinsights-radiologyinsights
+      safeName: azurehealthinsightsradiologyinsights
       skipVerifyChangeLog: true
 
-    - name: azure-healthinsights-clinicalmatching
-      safeName: azurehealthinsightsclinicalmatching
-      skipVerifyChangeLog: true
